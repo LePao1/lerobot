@@ -121,3 +121,20 @@ lerobot-train `
     --policy.push_to_hub=true `
     --wandb.enable=true
 ```
+
+  # 推理并录制
+```powershell
+lerobot-record  `
+  --robot.type=so101_follower `
+  --robot.port=COM4 `
+  --robot.id=0 `
+  --teleop.type=so101_leader `
+  --teleop.port=COM5 `
+  --teleop.id=1 `
+  --robot.cameras="{ 'handeye': {'type': 'opencv', 'index_or_path': 0, 'width': 640, 'height': 360, 'fps': 30, 'fourcc': 'MJPG'}, 'fixed': {'type': 'opencv', 'index_or_path': 1, 'width': 640, 'height': 360, 'fps': 30, 'fourcc': 'MJPG'}}" `
+  --policy.path=lepao/act_so101_test `
+  --dataset.single_task="Grab the paper cube" `
+  --policy.device=cpu `
+  --dataset.repo_id=lepao/eval_so101 `
+  --dataset.push_to_hub=false
+```
