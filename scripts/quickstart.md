@@ -113,3 +113,18 @@ lerobot-record \
     --dataset.push_to_hub=false \
     --robot.disable_torque_on_disconnect=true
 ```
+
+# 训练
+```bash
+export HF_USER=lepao
+lerobot-train \
+    --dataset.repo_id=${HF_USER}/so101_test \
+    --policy.type=act \
+    --output_dir=outputs/train/act_so101_test \
+    --job_name=act_so101_test \
+    --policy.device=cuda \
+    --policy.push_to_hub=true \
+    --policy.repo_id=${HF_USER}/act_so101_test \
+    --batch_size=128 \
+    --wandb.enable=false
+```
