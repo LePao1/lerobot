@@ -146,3 +146,22 @@ lerobot-train \
     --steps=20000 \
     --wandb.enable=false
 ```
+# 继续训练模型
+```bash
+lerobot-train \
+  --config_path=outputs/train/act_so101_test/checkpoints/last/pretrained_model/train_config.json \
+  --resume=true
+
+lerobot-train \
+  --config_path=outputs/train/smolvla_so101_test/checkpoints/last/pretrained_model/train_config.json \
+  --resume=true
+```
+
+# 上传模型
+```bash
+hf upload lepao/act_so101_test \
+  outputs/train/act_so101_test/checkpoints/last/pretrained_model
+
+hf upload lepao/smolvla_so101_test \
+  outputs/train/smolvla_so101_test/checkpoints/last/pretrained_model
+```

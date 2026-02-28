@@ -123,6 +123,25 @@ lerobot-train `
 ```
 
   # 推理并录制
+smolvla_so101_test 模型
+
+```powershell
+lerobot-record  `
+  --robot.type=so101_follower `
+  --robot.port=COM4 `
+  --robot.id=0 `
+  --teleop.type=so101_leader `
+  --teleop.port=COM5 `
+  --teleop.id=1 `
+  --robot.cameras="{ 'handeye': {'type': 'opencv', 'index_or_path': 0, 'width': 640, 'height': 360, 'fps': 30, 'fourcc': 'MJPG'}, 'fixed': {'type': 'opencv', 'index_or_path': 1, 'width': 640, 'height': 360, 'fps': 30, 'fourcc': 'MJPG'}}" `
+  --policy.path=lepao/smolvla_so101_test `
+  --dataset.single_task="Grab the paper cube" `
+  --policy.device=cpu `
+  --dataset.repo_id=lepao/eval_so101 `
+  --dataset.push_to_hub=false
+```
+act_so101_test 模型
+
 ```powershell
 lerobot-record  `
   --robot.type=so101_follower `
@@ -137,4 +156,10 @@ lerobot-record  `
   --policy.device=cpu `
   --dataset.repo_id=lepao/eval_so101 `
   --dataset.push_to_hub=false
+```
+
+# 上传数据集
+```
+hf upload lepao/so101_test \
+  outputs/dataset/so101_test
 ```
