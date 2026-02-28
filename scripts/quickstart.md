@@ -125,6 +125,24 @@ lerobot-train \
     --policy.device=cuda \
     --policy.push_to_hub=true \
     --policy.repo_id=${HF_USER}/act_so101_test \
+    --save_freq=5000 \
     --batch_size=128 \
+    --wandb.enable=false
+```
+
+# 训练smolvla
+```bash
+export HF_USER=lepao
+lerobot-train \
+    --dataset.repo_id=${HF_USER}/so101_test \
+    --policy.type=smolvla \
+    --output_dir=outputs/train/smolvla_so101_test \
+    --job_name=smolvla_so101_test \
+    --policy.device=cuda \
+    --policy.push_to_hub=true \
+    --policy.repo_id=${HF_USER}/smolvla_so101_test \
+    --save_freq=1000 \
+    --batch_size=128 \
+    --steps=20000 \
     --wandb.enable=false
 ```
