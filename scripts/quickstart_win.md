@@ -163,3 +163,91 @@ lerobot-record  `
 hf upload lepao/so101_test \
   outputs/dataset/so101_test
 ```
+
+# 远程推理（本地算力不足时使用）
+
+当本地电脑算力不足时，可以将模型放在远程 GPU 服务器上进行推理，本地电脑只负责连接 SO-101 执行动作。
+
+## 架构说明
+
+```
+┌─────────────────────┐          gRPC          ┌─────────────────────┐
+│  远程算力服务器      │ ◄──────────────────────► │  本地电脑            │
+│  (GPU 服务器)        │                          │  (连接 SO-101)        │
+│                     │                          │                      │
+│  PolicyServer       │   observations ──────►  │  RobotClient         │
+│  - 加载模型           │                          │  - 采集观测           │
+│  - 运行推理          │ ◄────── actions ───────  │  - 发送给机器人        │
+│  - 返回动作          │                          │  - 执行动作           │
+└─────────────────────┘                          └─────────────────────┘
+```
+
+## 安装依赖（两边都要）
+
+```powershell
+pip install -e ".[async]"
+```
+
+## 步骤 1： 在远程服务器启动 PolicyServer
+
+```powershell
+# 在远程 GPU 服务器上运行
+python -m lerobot.async_inference.policy_server `
+     --host=0.0.0.0 `
+     --port=8080
+```
+
+> **注意**: `--host=0.0.0.0` 允许外部连接。如果远程服务器有防火墙，需要开放 8080 端口。
+
+## 步骤 2： 在本地电脑启动 RobotClient（连接 SO-101）
+
+```powershell
+# 在本地电脑运行，连接 SO-101
+# 将 <远程服务器IP> 替换为你的远程服务器 IP 地址
+python -m lerobot.async_inference.robot_client `
+    --server_address=<远程服务器IP>:8080 `
+    --robot.type=so101_follower `
+    --robot.port=COM4 `
+    --robot.id=0 `
+    --robot.cameras="{ 'handeye': {'type': 'opencv', 'index_or_path': 0, 'width': 640, 'height': 360, 'fps': 30, 'fourcc': 'MJPG'}, 'fixed': {'type': 'opencv', 'index_or_path': 1, 'width': 640, 'height': 360, 'fps': 30, 'fourcc': 'MJPG'}}" `
+    --task="Grab the paper cube" `
+    --policy_type=act `
+    --pretrained_name_or_path=lepao/act_so101_test `
+    --policy_device=cuda `
+    --client_device=cpu `
+    --actions_per_chunk=50 `
+    --chunk_size_threshold=0.5 `
+    --aggregate_fn_name=weighted_average `
+    --debug_visualize_queue_size=true
+```
+
+## 关键参数说明
+
+| 参数 | 说明 |
+|------|------|
+| `--server_address` | 远程服务器的 IP:端口 |
+| `--robot.type` | `so101_follower` |
+| `--robot.port` | SO-101 的串口（如 `COM4`） |
+| `--policy_device` | **远程服务器** 上的设备（`cuda`, `mps`, `cpu`） |
+| `--client_device` | 本地电脑的设备（通常是 `cpu`） |
+| `--actions_per_chunk` | 每次推理输出的动作数量（10-50） |
+| `--chunk_size_threshold` | 队列阈值，0.5 = 队列消耗一半时发送新观测 |
+
+## 网络配置
+
+确保：
+1. **远程服务器防火墙** 开放 8080 端口
+2. **本地电脑可以 ping 通远程服务器**
+3. 如果使用云服务器，配置安全组规则
+
+测试连接：
+```powershell
+# 在本地电脑测试（PowerShell）
+Test-NetConnection -ComputerName <远程服务器IP> -Port 8080
+```
+
+## 性能调优建议
+
+1. **如果动作队列经常为空**: 降低 `--fps` 或增加 `--actions_per_chunk`
+2. **如果网络延迟高**: 增加 `--chunk_size_threshold` 到 0.6-0.7
+3. **监控队列状态**: 添加 `--debug_visualize_queue_size=true`

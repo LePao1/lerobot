@@ -165,3 +165,66 @@ hf upload lepao/act_so101_test \
 hf upload lepao/smolvla_so101_test \
   outputs/train/smolvla_so101_test/checkpoints/last/pretrained_model
 ```
+
+# 清除验证集
+```bash
+rm -r ~/.cache/huggingface/lerobot/lepao/eval_so101
+```
+# 推理并录制
+```bash
+lerobot-record  \
+  --robot.type=so101_follower \
+  --robot.port=/dev/ttyACM0 \
+  --robot.id=0 \
+  --teleop.type=so101_leader \
+  --teleop.port=/dev/ttyACM1 \
+  --teleop.id=1 \
+  --robot.cameras="{ 'handeye': {'type': 'opencv', 'index_or_path': '/dev/video0', 'width': 640, 'height': 360, 'fps': 30, 'fourcc': 'MJPG'}, 'fixed': {'type': 'opencv', 'index_or_path': '/dev/video2', 'width': 640, 'height': 360, 'fps': 30, 'fourcc': 'MJPG'}}" \
+  --policy.path=lepao/act_so101_test \
+  --dataset.single_task="Grab the paper cube" \
+  --policy.device=cpu \
+  --dataset.repo_id=lepao/eval_so101 \
+  --dataset.push_to_hub=false
+```
+
+# 远程推理（本地算力不足时使用）
+
+当本地电脑算力不足时，可以将模型放在远程 GPU 服务器上进行推理，本地电脑只负责连接 SO-101 执行动作。
+
+## 架构说明
+
+```
+┌─────────────────────┐          gRPC            ┌─────────────────────┐
+│  远程算力服务器      │ ◄──────────────────────► │  本地电脑            │
+│  (GPU 服务器)        │                          │  (连接 SO-101)       │
+│                     │                          │                      │
+│  PolicyServer       │   observations ──────►   │  RobotClient         │
+│  - 加载模型          │                          │  - 采集观测           │
+│  - 运行推理          │ ◄────── actions ───────  │  - 发送给机器人        │
+│  - 返回动作          │                          │  - 执行动作           │
+└─────────────────────┘                          └─────────────────────┘
+```
+
+## 安装依赖（两边都要）
+
+```bash
+pip install -e ".[async]"
+```
+
+## 步骤 1： 在远程服务器启动 PolicyServer
+
+```bash
+# 在远程 GPU 服务器上运行
+python -m lerobot.async_inference.policy_server \
+     --host=0.0.0.0 \
+     --port=8080
+```
+
+> **注意**: `--host=0.0.0.0` 允许外部连接。如果远程服务器有防火墙，需要开放 8080 端口。
+
+
+## 性能调优建议
+
+1. **如果动作队列经常为空**: 降低 `--fps` 或增加 `--actions_per_chunk`
+2. **如果网络延迟高**: 增加 `--chunk_size_threshold` 到 0.6-0.7
+3. **监控队列状态**: 添加 `--debug_visualize_queue_size=true`
