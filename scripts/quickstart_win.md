@@ -1,9 +1,21 @@
-# 连接硬件
-可查看具体映射设备
+# 0、环境安装
+```powershell
+conda create -y -n lerobot python=3.12
+conda activate lerobot
+
+conda install ffmpeg -c conda-forge
+conda install evdev -c conda-forge
+
+pip install -e .
+pip install -e ".[feetech]"
+```
+
+# 1、连接硬件
+win直接连接即可，可查看具体映射设备
 ```powershell
 lerobot-find-port
 ```
-# 手动标注
+# 2、双臂校准
 进行中位校准以及关节运动最大角度
 
 follower（青色）
@@ -36,7 +48,8 @@ C:\USERS\13461\.CACHE\HUGGINGFACE\LEROBOT
             └── 1.json
 ```
 
-# 双臂遥操作启动命令
+# 3、双臂遥操作
+## 3.1 遥操作
 ```powershell
 lerobot-teleoperate `
     --robot.type=so101_follower `
@@ -46,8 +59,9 @@ lerobot-teleoperate `
     --teleop.port=COM5 `
     --teleop.id=1 
 ```
+## 3.2 遥操作+双相机
+遥操作+双相机
 
-# 遥操作+双相机
 查找相机设备，会在`outputs/captured_images`目录下捕获相机图像
 ```powershell
 lerobot-find-cameras
@@ -63,7 +77,7 @@ ffmpeg -list_devices true -f dshow -i dummy
 ffmpeg -f dshow -list_options true -i video="USB 2.0 Camera"
 ```
 
-# 遥操作+相机启动命令
+遥操作+相机启动命令
 ```powershell
 lerobot-teleoperate `
     --robot.type=so101_follower `
@@ -76,7 +90,7 @@ lerobot-teleoperate `
     --display_data=true
 ```
 
-# 录制数据集
+# 4、录制数据集
 开始录制，可选择--display_data=false 关闭画面数据实时显示
 ```powershell
 # 删除旧的数据集缓存（可选）
@@ -104,25 +118,71 @@ lerobot-record `
     --resume=true 
 ```
 
-# 查看数据集
+查看数据集
 ```powershell
 lerobot-dataset-viz --repo-id lepao/so101_test --episode-index 0
 ```
 
-# 训练
+# 5、训练
+
+训练 act 模型
 ```powershell
-$env:HF_USER="lepao"
+export HF_USER=lepao
 lerobot-train `
-    --dataset.repo_id=$env:HF_USER/so101_test `
-    --policy.type=act `
+    --dataset.repo_id=${HF_USER}/so101_test `
+    --policy.type=act \
     --output_dir=outputs/train/act_so101_test `
     --job_name=act_so101_test `
     --policy.device=cuda `
     --policy.push_to_hub=true `
-    --wandb.enable=true
+    --policy.repo_id=${HF_USER}/act_so101_test `
+    --save_freq=5000 `
+    --steps=20000 `
+    --batch_size=128 `
+    --wandb.enable=false
 ```
 
-  # 推理并录制
+训练smolvla
+```powershell
+pip install -e ".[smolvla]"
+```
+```powershell
+export HF_USER=lepao
+lerobot-train `
+    --dataset.repo_id=${HF_USER}/so101_test `
+    --policy.type=smolvla `
+    --output_dir=outputs/train/smolvla_so101_test `
+    --job_name=smolvla_so101_test `
+    --policy.device=cuda `
+    --policy.push_to_hub=true `
+    --policy.repo_id=${HF_USER}/smolvla_so101_test `
+    --save_freq=1000 `
+    --batch_size=128 `
+    --steps=20000 `
+    --wandb.enable=false
+```
+继续训练模型
+```bash
+lerobot-train `
+  --config_path=outputs/train/act_so101_test/checkpoints/last/pretrained_model/train_config.json `
+  --resume=true
+
+lerobot-train `
+  --config_path=outputs/train/smolvla_so101_test/checkpoints/last/pretrained_model/train_config.json `
+  --resume=true
+```
+
+上传模型
+```bash
+hf upload lepao/act_so101_test `
+  outputs/train/act_so101_test/checkpoints/last/pretrained_model
+
+hf upload lepao/smolvla_so101_test `
+  outputs/train/smolvla_so101_test/checkpoints/last/pretrained_model
+```
+
+
+# 6、推理并录制
 smolvla_so101_test 模型
 
 ```powershell
@@ -158,7 +218,7 @@ lerobot-record  `
   --dataset.push_to_hub=false
 ```
 
-# 上传数据集
+上传数据集
 ```
 hf upload lepao/so101_test \
   outputs/dataset/so101_test

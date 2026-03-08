@@ -6,6 +6,7 @@ conda activate lerobot
 conda install ffmpeg -c conda-forge
 conda install evdev -c conda-forge
 
+pip install -e .
 pip install -e ".[feetech]"
 ```
 
