@@ -184,8 +184,8 @@ hf upload lepao/act_so101_test \
 hf upload lepao/smolvla_so101_test \
   outputs/train/smolvla_so101_test/checkpoints/last/pretrained_model
 ```
-# 推理
-
+# 6、推理
+## 6.1、本地推理
 清除验证集
 ```bash
 rm -r ~/.cache/huggingface/lerobot/lepao/eval_so101
@@ -207,11 +207,10 @@ lerobot-record  \
   --dataset.push_to_hub=false
 ```
 
-# 远程推理（本地算力不足时使用）
+## 6.2、远程推理（本地算力不足时使用）
 
 当本地电脑算力不足时，可以将模型放在远程 GPU 服务器上进行推理，本地电脑只负责连接 SO-101 执行动作。
 
-## 架构说明
 
 ```
 ┌─────────────────────┐          gRPC            ┌─────────────────────┐
@@ -225,13 +224,13 @@ lerobot-record  \
 └─────────────────────┘                          └─────────────────────┘
 ```
 
-## 安装依赖（两边都要）
+### 6.2.1、安装依赖（两边都要）
 
 ```bash
 pip install -e ".[async]"
 ```
 
-## 步骤 1： 在远程服务器启动 PolicyServer
+### 6.2.2、在远程服务器启动 PolicyServer
 
 ```bash
 # 在远程 GPU 服务器上运行
