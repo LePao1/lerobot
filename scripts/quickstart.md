@@ -1,5 +1,16 @@
-# 硬件映射
-连接好硬件后，在powershell内执行，完成 windows 硬件映射 wsl，
+# 0、环境安装
+```bash
+conda create -y -n lerobot python=3.12
+conda activate lerobot
+
+conda install ffmpeg -c conda-forge
+conda install evdev -c conda-forge
+
+pip install -e ".[feetech]"
+```
+
+# 1、硬件映射
+连接好硬件后，在powershell内执行，完成 windows 硬件映射 wsl
 ```powershell
 usbipd list
 usbipd bind --busid 6-1
@@ -11,11 +22,11 @@ usbipd attach --wsl --busid 6-2
 usbipd attach --wsl --busid 6-3
 usbipd attach --wsl --busid 6-4
 ```
-可查看具体映射设备
+wsl 内可查看具体映射设备
 ```bash
 lerobot-find-port
 ```
-# 手动标注
+# 2、双臂校准
 进行中位校准以及关节运动最大角度
 
 follower（青色）
@@ -47,7 +58,8 @@ tree ~/.cache/huggingface/lerobot
             └── 0.json
 ```
 
-# 双臂遥操作启动命令
+# 3、双臂遥操作
+## 3.1 遥操作
 ```bash
 lerobot-teleoperate \
     --robot.type=so101_follower \
@@ -58,7 +70,7 @@ lerobot-teleoperate \
     --teleop.id=1 
 ```
 
-# 遥操作+双相机
+## 3.2 遥操作+双相机
 查找相机设备，会在`outputs/captured_images`目录下捕获相机图像
 ```bash
 sudo chmod 666 /dev/video*
@@ -73,7 +85,7 @@ sudo apt update && sudo apt install v4l-utils
 v4l2-ctl -d /dev/video0 --list-formats-ext
 ```
 
-# 遥操作+相机启动命令
+遥操作+双相机 启动命令
 ```bash
 lerobot-teleoperate \
     --robot.type=so101_follower \
@@ -86,7 +98,7 @@ lerobot-teleoperate \
     --display_data=true
 ```
 
-# 录制数据集
+# 4、录制数据集
 增加语音提示
 ```bash
 sudo apt install speech-dispatcher
@@ -114,7 +126,9 @@ lerobot-record \
     --robot.disable_torque_on_disconnect=true
 ```
 
-# 训练
+# 5、训练
+
+训练 act 模型
 ```bash
 export HF_USER=lepao
 lerobot-train \
@@ -126,11 +140,15 @@ lerobot-train \
     --policy.push_to_hub=true \
     --policy.repo_id=${HF_USER}/act_so101_test \
     --save_freq=5000 \
+    --steps=20000 \
     --batch_size=128 \
     --wandb.enable=false
 ```
 
-# 训练smolvla
+训练smolvla
+```bash
+pip install -e ".[smolvla]"
+```
 ```bash
 export HF_USER=lepao
 lerobot-train \
@@ -146,7 +164,7 @@ lerobot-train \
     --steps=20000 \
     --wandb.enable=false
 ```
-# 继续训练模型
+继续训练模型
 ```bash
 lerobot-train \
   --config_path=outputs/train/act_so101_test/checkpoints/last/pretrained_model/train_config.json \
@@ -157,7 +175,7 @@ lerobot-train \
   --resume=true
 ```
 
-# 上传模型
+上传模型
 ```bash
 hf upload lepao/act_so101_test \
   outputs/train/act_so101_test/checkpoints/last/pretrained_model
@@ -165,12 +183,13 @@ hf upload lepao/act_so101_test \
 hf upload lepao/smolvla_so101_test \
   outputs/train/smolvla_so101_test/checkpoints/last/pretrained_model
 ```
+# 推理
 
-# 清除验证集
+清除验证集
 ```bash
 rm -r ~/.cache/huggingface/lerobot/lepao/eval_so101
 ```
-# 推理并录制
+推理并录制
 ```bash
 lerobot-record  \
   --robot.type=so101_follower \
