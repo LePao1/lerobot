@@ -1,4 +1,5 @@
 # 0、环境安装
+
 ```powershell
 conda create -y -n lerobot python=3.12
 conda activate lerobot
@@ -10,12 +11,17 @@ pip install -e .
 pip install -e ".[feetech]"
 ```
 
+
 # 1、连接硬件
+
 win直接连接即可，可查看具体映射设备
 ```powershell
 lerobot-find-port
 ```
+
+
 # 2、双臂校准
+
 进行中位校准以及关节运动最大角度
 
 follower（青色）
@@ -48,8 +54,11 @@ C:\USERS\13461\.CACHE\HUGGINGFACE\LEROBOT
             └── 1.json
 ```
 
+
 # 3、双臂遥操作
+
 ## 3.1 遥操作
+
 ```powershell
 lerobot-teleoperate `
     --robot.type=so101_follower `
@@ -60,6 +69,7 @@ lerobot-teleoperate `
     --teleop.id=1 
 ```
 ## 3.2 遥操作+双相机
+
 遥操作+双相机
 
 查找相机设备，会在`outputs/captured_images`目录下捕获相机图像
@@ -90,7 +100,9 @@ lerobot-teleoperate `
     --display_data=true
 ```
 
+
 # 4、录制数据集
+
 开始录制，可选择--display_data=false 关闭画面数据实时显示
 ```powershell
 # 删除旧的数据集缓存（可选）
@@ -122,6 +134,7 @@ lerobot-record `
 ```powershell
 lerobot-dataset-viz --repo-id lepao/so101_test --episode-index 0
 ```
+
 
 # 5、训练
 
@@ -182,7 +195,10 @@ hf upload lepao/smolvla_so101_test `
 ```
 
 
-# 6、推理并录制
+# 6、推理
+
+## 6.1、本地推理
+
 smolvla_so101_test 模型
 
 ```powershell
@@ -224,7 +240,7 @@ hf upload lepao/so101_test \
   outputs/dataset/so101_test
 ```
 
-# 远程推理（本地算力不足时使用）
+## 6.2、远程推理（本地算力不足时使用）
 
 当本地电脑算力不足时，可以将模型放在远程 GPU 服务器上进行推理，本地电脑只负责连接 SO-101 执行动作。
 
@@ -242,13 +258,13 @@ hf upload lepao/so101_test \
 └─────────────────────┘                          └─────────────────────┘
 ```
 
-## 安装依赖（两边都要）
+### 6.2.1、安装依赖（两边都要）
 
 ```powershell
 pip install -e ".[async]"
 ```
 
-## 步骤 1： 在远程服务器启动 PolicyServer
+### 6.2.2、在远程服务器启动 PolicyServer
 
 ```powershell
 # 在远程 GPU 服务器上运行
@@ -257,15 +273,13 @@ python -m lerobot.async_inference.policy_server `
      --port=8080
 ```
 
-> **注意**: `--host=0.0.0.0` 允许外部连接。如果远程服务器有防火墙，需要开放 8080 端口。
 
-## 步骤 2： 在本地电脑启动 RobotClient（连接 SO-101）
+### 6.2.3、在本地电脑启动 RobotClient（连接 SO-101）
 
 ```powershell
-# 在本地电脑运行，连接 SO-101
-# 将 <远程服务器IP> 替换为你的远程服务器 IP 地址
+# 将 server_address 替换为你的远程服务器 IP 地址
 python -m lerobot.async_inference.robot_client `
-    --server_address=<远程服务器IP>:8080 `
+    --server_address=127.0.0.1:8080 `
     --robot.type=so101_follower `
     --robot.port=COM4 `
     --robot.id=0 `
@@ -281,7 +295,7 @@ python -m lerobot.async_inference.robot_client `
     --debug_visualize_queue_size=true
 ```
 
-## 关键参数说明
+关键参数说明
 
 | 参数 | 说明 |
 |------|------|
@@ -293,20 +307,8 @@ python -m lerobot.async_inference.robot_client `
 | `--actions_per_chunk` | 每次推理输出的动作数量（10-50） |
 | `--chunk_size_threshold` | 队列阈值，0.5 = 队列消耗一半时发送新观测 |
 
-## 网络配置
 
-确保：
-1. **远程服务器防火墙** 开放 8080 端口
-2. **本地电脑可以 ping 通远程服务器**
-3. 如果使用云服务器，配置安全组规则
-
-测试连接：
-```powershell
-# 在本地电脑测试（PowerShell）
-Test-NetConnection -ComputerName <远程服务器IP> -Port 8080
-```
-
-## 性能调优建议
+性能调优建议
 
 1. **如果动作队列经常为空**: 降低 `--fps` 或增加 `--actions_per_chunk`
 2. **如果网络延迟高**: 增加 `--chunk_size_threshold` 到 0.6-0.7

@@ -1,4 +1,5 @@
 # 0、环境安装
+
 ```bash
 conda create -y -n lerobot python=3.12
 conda activate lerobot
@@ -10,7 +11,9 @@ pip install -e .
 pip install -e ".[feetech]"
 ```
 
+
 # 1、硬件映射
+
 连接好硬件后，在powershell内执行，完成 windows 硬件映射 wsl
 ```powershell
 usbipd list
@@ -27,7 +30,10 @@ wsl 内可查看具体映射设备
 ```bash
 lerobot-find-port
 ```
+
+
 # 2、双臂校准
+
 进行中位校准以及关节运动最大角度
 
 follower（青色）
@@ -59,8 +65,11 @@ tree ~/.cache/huggingface/lerobot
             └── 0.json
 ```
 
+
 # 3、双臂遥操作
+
 ## 3.1 遥操作
+
 ```bash
 lerobot-teleoperate \
     --robot.type=so101_follower \
@@ -72,6 +81,7 @@ lerobot-teleoperate \
 ```
 
 ## 3.2 遥操作+双相机
+
 查找相机设备，会在`outputs/captured_images`目录下捕获相机图像
 ```bash
 sudo chmod 666 /dev/video*
@@ -99,7 +109,9 @@ lerobot-teleoperate \
     --display_data=true
 ```
 
+
 # 4、录制数据集
+
 增加语音提示
 ```bash
 sudo apt install speech-dispatcher
@@ -126,6 +138,7 @@ lerobot-record \
     --dataset.push_to_hub=false \
     --robot.disable_torque_on_disconnect=true
 ```
+
 
 # 5、训练
 
@@ -184,8 +197,12 @@ hf upload lepao/act_so101_test \
 hf upload lepao/smolvla_so101_test \
   outputs/train/smolvla_so101_test/checkpoints/last/pretrained_model
 ```
+
+
 # 6、推理
+
 ## 6.1、本地推理
+
 清除验证集
 ```bash
 rm -r ~/.cache/huggingface/lerobot/lepao/eval_so101
