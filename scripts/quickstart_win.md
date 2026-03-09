@@ -273,11 +273,15 @@ python -m lerobot.async_inference.policy_server `
      --port=8080
 ```
 
-
-### 6.2.3、在本地电脑启动 RobotClient（连接 SO-101）
-
+### 6.2.3、通过ssh将远程服务器端口映射到本地
 ```powershell
-# 将 server_address 替换为你的远程服务器 IP 地址
+ ssh -CNg -L 8080:127.0.0.1:8080 root@123.456.789.123 -p 30499
+```
+
+### 6.2.4、在本地电脑启动 RobotClient（连接 SO-101）
+
+act 模型
+```powershell
 python -m lerobot.async_inference.robot_client `
     --server_address=127.0.0.1:8080 `
     --robot.type=so101_follower `
@@ -286,30 +290,29 @@ python -m lerobot.async_inference.robot_client `
     --robot.cameras="{ 'handeye': {'type': 'opencv', 'index_or_path': 0, 'width': 640, 'height': 360, 'fps': 30, 'fourcc': 'MJPG'}, 'fixed': {'type': 'opencv', 'index_or_path': 1, 'width': 640, 'height': 360, 'fps': 30, 'fourcc': 'MJPG'}}" `
     --task="Grab the paper cube" `
     --policy_type=act `
-    --pretrained_name_or_path=lepao/act_so101_test `
+    --pretrained_name_or_path=outputs/train/act_so101_test/checkpoints/last/pretrained_model `
     --policy_device=cuda `
     --client_device=cpu `
-    --actions_per_chunk=50 `
-    --chunk_size_threshold=0.5 `
+    --actions_per_chunk=100 `
+    --chunk_size_threshold=0.1 `
     --aggregate_fn_name=weighted_average `
     --debug_visualize_queue_size=true
 ```
-
-关键参数说明
-
-| 参数 | 说明 |
-|------|------|
-| `--server_address` | 远程服务器的 IP:端口 |
-| `--robot.type` | `so101_follower` |
-| `--robot.port` | SO-101 的串口（如 `COM4`） |
-| `--policy_device` | **远程服务器** 上的设备（`cuda`, `mps`, `cpu`） |
-| `--client_device` | 本地电脑的设备（通常是 `cpu`） |
-| `--actions_per_chunk` | 每次推理输出的动作数量（10-50） |
-| `--chunk_size_threshold` | 队列阈值，0.5 = 队列消耗一半时发送新观测 |
-
-
-性能调优建议
-
-1. **如果动作队列经常为空**: 降低 `--fps` 或增加 `--actions_per_chunk`
-2. **如果网络延迟高**: 增加 `--chunk_size_threshold` 到 0.6-0.7
-3. **监控队列状态**: 添加 `--debug_visualize_queue_size=true`
+smolvla 模型
+```powershell
+python -m lerobot.async_inference.robot_client `
+    --server_address=127.0.0.1:8080 `
+    --robot.type=so101_follower `
+    --robot.port=COM4 `
+    --robot.id=0 `
+    --robot.cameras="{ 'handeye': {'type': 'opencv', 'index_or_path': 0, 'width': 640, 'height': 360, 'fps': 30, 'fourcc': 'MJPG'}, 'fixed': {'type': 'opencv', 'index_or_path': 1, 'width': 640, 'height': 360, 'fps': 30, 'fourcc': 'MJPG'}}" `
+    --task="Grab the paper cube" `
+    --policy_type=smolvla `
+    --pretrained_name_or_path=outputs/train/smolvla_so101_test/checkpoints/last/pretrained_model `
+    --policy_device=cuda `
+    --client_device=cpu `
+    --actions_per_chunk=60 `
+    --chunk_size_threshold=0.3 `
+    --aggregate_fn_name=weighted_average `
+    --debug_visualize_queue_size=true
+```
