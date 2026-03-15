@@ -38,6 +38,9 @@
 
 确保已安装 LeRobot 基础环境（miniforge 和 uv 显著加速安装）：
 
+<details>
+<summary>安装命令</summary>
+
 ```bash
 conda create -y -n lerobot python=3.12
 conda activate lerobot
@@ -53,9 +56,14 @@ uv pip uninstall opencv-python
 uv pip install opencv-python-headless
 ```
 
+</details>
+
 # 一、基线训练
 
 1.1 Diffusion Policy 训练
+
+<details>
+<summary>训练命令</summary>
 
 ```bash
 export HF_USER=lepao
@@ -77,6 +85,11 @@ lerobot-train \
     --wandb.enable=false
 ```
 
+</details>
+
+<details>
+<summary>评估命令</summary>
+
 ```bash
 lerobot-eval \
     --env.type=pusht \
@@ -89,7 +102,12 @@ lerobot-eval \
     --policy.use_amp=false
 ```
 
+</details>
+
 1.2 ACT Policy 训练
+
+<details>
+<summary>训练命令</summary>
 
 ```bash
 export HF_USER=lepao
@@ -111,6 +129,8 @@ lerobot-train \
     --wandb.enable=false
 ```
 
+</details>
+
 > \[!TIP]
 > Episode 终止条件: T 形方块覆盖率达到 95% 或达到最大步数限制（默认 300 步）
 
@@ -130,6 +150,9 @@ ACT 基线的默认超参数针对 ALOHA 双臂操作任务设计（chunk\_size=
 不同 chunk\_size 影响模型的时间预测范围和推理频率。chunk\_size 越小，模型被查询的频率越高，闭环控制越强。
 
 探索的 chunk\_size 值：**4, 8, 16, 32, 64**。
+
+<details>
+<summary>训练命令</summary>
 
 ```bash
 export HF_USER=lepao
@@ -154,6 +177,8 @@ lerobot-train \
     --wandb.enable=true
 ```
 
+</details>
+
 | 策略            | pc\_success ↑ | avg\_max\_reward ↑ | avg\_sum\_reward ↑ | eval\_s ↓ | eval\_ep\_s ↓ |
 | ------------- | ------------- | ------------------ | ------------------ | --------- | ------------- |
 | chunk\_4      | 9.4           | 0.489              | 82.70              | 452.79    | 0.91          |
@@ -172,6 +197,9 @@ lerobot-train \
 
 Temporal Ensembling 是 ACT 论文推荐的推理机制：**每步都调用模型预测完整动作块，然后对当前时间步的多次预测做指数加权平均**。动作更平滑，抑制预测抖动，**不需要重新训练**，直接对已训练模型生效
 
+<details>
+<summary>评估命令</summary>
+
 ```bash
 export chunk=64
 lerobot-eval \
@@ -186,6 +214,8 @@ lerobot-eval \
     --policy.n_action_steps=1 \
     --policy.temporal_ensemble_coeff=0.01
 ```
+
+</details>
 
 > **注意**：启用 temporal ensemble 时必须同时设置 `n_action_steps=1`，否则会报错。
 
@@ -217,6 +247,9 @@ lerobot-eval \
 
 chunk/action 分离, 模型预测未来 16 步动作，但只执行前 4 步就重新推理，后 12 步丢弃
 
+<details>
+<summary>训练命令</summary>
+
 ```bash
 export HF_USER=lepao
 lerobot-train \
@@ -239,6 +272,8 @@ lerobot-train \
     --wandb.enable=true
 ```
 
+</details>
+
 | 策略            | pc\_success ↑ | avg\_max\_reward ↑ | avg\_sum\_reward ↑ | eval\_s ↓ | eval\_ep\_s ↓ |
 | ------------- | ------------- | ------------------ | ------------------ | --------- | ------------- |
 | 基线 chunk\_8   | 22.6          | 0.611              | 77.67              | 810.25    | 1.62          |
@@ -250,6 +285,9 @@ lerobot-train \
 ### 2.4 调整Decoder层数
 
 不同 decoder 层数影响模型的表示能力和泛化能力。decoder 层数越多，模型越复杂，泛化能力越强。探索的 decoder 层数值：**4, 7**。
+
+<details>
+<summary>训练命令</summary>
 
 ```bash
 export HF_USER=lepao
@@ -274,6 +312,8 @@ lerobot-train \
     --wandb.enable=true
 ```
 
+</details>
+
 | 策略                      | pc\_success ↑ | avg\_max\_reward ↑ | avg\_sum\_reward ↑ | eval\_s ↓ | eval\_ep\_s ↓ |
 | ----------------------- | ------------- | ------------------ | ------------------ | --------- | ------------- |
 | 基线 n\_decoder\_layers=1 | 22.6          | 0.611              | 77.67              | 810.25    | 1.62          |
@@ -285,6 +325,9 @@ lerobot-train \
 ### 2.5 学习率与KL调整
 
 lr 调整：1e-5, 2e-5, 5e-5
+
+<details>
+<summary>学习率调整训练命令</summary>
 
 ```bash
 export HF_USER=lepao
@@ -310,7 +353,12 @@ lerobot-train \
     --wandb.enable=true
 ```
 
+</details>
+
 kl 调整：kl10, kl5, kl1
+
+<details>
+<summary>KL 权重调整训练命令</summary>
 
 ```bash
 export HF_USER=lepao
@@ -336,7 +384,12 @@ lerobot-train \
     --wandb.enable=true
 ```
 
+</details>
+
 融合已探索的增益训练配置
+
+<details>
+<summary>融合配置训练命令</summary>
 
 ```bash
 export HF_USER=lepao
@@ -362,6 +415,8 @@ lerobot-train \
     --wandb.enable=true
 ```
 
+</details>
+
 | 策略                      | pc\_success ↑ | avg\_max\_reward ↑ | avg\_sum\_reward ↑ | eval\_s ↓ | eval\_ep\_s ↓ |
 | ----------------------- | ------------- | ------------------ | ------------------ | --------- | ------------- |
 | 基线：dec7\_kl10\_lr1e5    | 28.4          | 0.649              | 79.53              | 510.79    | 1.02          |
@@ -379,6 +434,9 @@ lerobot-train \
 
 探索不同的数据集增强策略
 affine: 10, 15, 20；以及默认的6种策略
+
+<details>
+<summary>Affine ±10° 训练命令</summary>
 
 ```bash
 export HF_USER=lepao
@@ -406,6 +464,11 @@ lerobot-train \
     --dataset.image_transforms.tfs='{"affine": {"weight": 1.0, "type": "RandomAffine", "kwargs": {"degrees": [-10, 10], "translate": [0.1, 0.1]}}}'
 ```
 
+</details>
+
+<details>
+<summary>默认增强 / Affine ±15° / Affine ±20° 训练命令</summary>
+
 ```bash
 export HF_USER=lepao
 export JOB_NAME=act_pusht_dec7_lr2e5_chunk16act4_aug
@@ -432,7 +495,12 @@ lerobot-train \
     --dataset.image_transforms.tfs='{"affine": {"weight": 1.0, "type": "RandomAffine", "kwargs": {"degrees": [-20, 20], "translate": [0.2, 0.2]}}}'
 ```
 
+</details>
+
 探索10万步下 cosine 优化器设置，对训练的影响
+
+<details>
+<summary>Cosine 调度训练命令</summary>
 
 ```bash
 export HF_USER=lepao
@@ -468,6 +536,8 @@ lerobot-train \
     --scheduler.decay_lr=2e-6
 ```
 
+</details>
+
 | 策略                                                    | pc\_success ↑ | avg\_max\_reward ↑ | avg\_sum\_reward ↑ | eval\_s ↓ | eval\_ep\_s ↓ |
 | ----------------------------------------------------- | ------------- | ------------------ | ------------------ | --------- | ------------- |
 | act\_pusht\_dec7\_lr2e5\_chunk16act4\_aug             | 28.0          | 0.595              | 78.41              | 641.39    | 1.28          |
@@ -484,6 +554,9 @@ lerobot-train \
 ### 2.7、延长训练步数
 
 探索 200000 / 300000 / 400000
+
+<details>
+<summary>训练命令</summary>
 
 ```bash
 export HF_USER=lepao
@@ -512,6 +585,8 @@ lerobot-train \
     --dataset.image_transforms.tfs='{"affine": {"weight": 1.0, "type": "RandomAffine", "kwargs": {"degrees": [-10, 10], "translate": [0.1, 0.1]}}}'
 ```
 
+</details>
+
 | 策略               | pc\_success ↑ | avg\_max\_reward ↑ | avg\_sum\_reward ↑ | eval\_s ↓  | eval\_ep\_s ↓ |
 | ---------------- | ------------- | ------------------ | ------------------ | ---------- | ------------- |
 | 100k             | 41.8          | 0.797              | 104.20             | 435.51     | 0.87          |
@@ -524,6 +599,9 @@ lerobot-train \
 - **长训练有效**：400k (63.0%) 显著恢复并超越 200k，说明模型需要足够步数才能收敛到更好的解
 
 # 最佳结果
+
+<details>
+<summary>最优配置训练命令</summary>
 
 ```bash
 export HF_USER=lepao
@@ -560,7 +638,10 @@ lerobot-train \
     --scheduler.decay_lr=2e-6
 ```
 
-评估
+</details>
+
+<details>
+<summary>评估命令</summary>
 
 ```bash
 lerobot-eval \
@@ -573,6 +654,8 @@ lerobot-eval \
     --policy.device=cuda \
     --policy.use_amp=false
 ```
+
+</details>
 
 | 策略               | pc\_success ↑ | avg\_max\_reward ↑ | avg\_sum\_reward ↑ | eval\_s ↓  | eval\_ep\_s ↓ |
 | ---------------- | ------------- | ------------------ | ------------------ | ---------- | ------------- |
