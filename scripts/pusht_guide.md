@@ -660,3 +660,18 @@ lerobot-eval \
 | 策略               | pc\_success ↑ | avg\_max\_reward ↑ | avg\_sum\_reward ↑ | eval\_s ↓  | eval\_ep\_s ↓ |
 | ---------------- | ------------- | ------------------ | ------------------ | ---------- | ------------- |
 | **500k\_cosine** | **66.0**      | **0.922**          | **101.07**         | **437.58** | **0.88**      |
+
+
+模型已经上传 huggingface，欢迎验证
+
+```bash
+lerobot-eval \
+    --env.type=pusht \
+    --policy.path=lepao/act_pusht_best \
+    --output_dir=outputs/eval/act_pusht_best \
+    --job_name=act_pusht_best \
+    --eval.n_episodes=500 \
+    --eval.batch_size=50 \
+    --policy.device=cuda \
+    --policy.use_amp=false
+```
