@@ -330,7 +330,7 @@ lerobot-train \
     --policy.chunk_size=8 \
     --policy.n_action_steps=8 \
     --policy.n_decoder_layers=7 \
-    --policy.kl_weight=5.0 \
+    --policy.kl_weight=1.0 \
     --policy.device=cuda \
     --policy.push_to_hub=false \
     --wandb.enable=true
