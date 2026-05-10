@@ -142,21 +142,93 @@ lerobot-record \
 
 # 5、训练
 
-训练 act 模型
+训练 act 模型（基线）
 ```bash
 export HF_USER=lepao
+export JOB_NAME=act_so101_test
 lerobot-train \
     --dataset.repo_id=${HF_USER}/so101_test \
     --policy.type=act \
-    --output_dir=outputs/train/act_so101_test \
-    --job_name=act_so101_test \
+    --output_dir=outputs/train/${JOB_NAME} \
+    --job_name=${JOB_NAME} \
     --policy.device=cuda \
     --policy.push_to_hub=true \
-    --policy.repo_id=${HF_USER}/act_so101_test \
+    --policy.repo_id=${HF_USER}/${JOB_NAME} \
     --save_freq=5000 \
-    --steps=20000 \
-    --batch_size=128 \
-    --wandb.enable=false
+    --steps=50000 \
+    --batch_size=8 \
+    --wandb.enable=true
+```
+
+基于 PushT 调优经验，抓方块任务建议按下面顺序做 ACT 小规模对比实验
+
+
+ACT 调参实验模板（优先做 chunk sweep）
+```bash
+export HF_USER=lepao
+export CHUNK=16
+export ACTION=16
+export JOB_NAME=act_so101_chunk${CHUNK}_act${ACTION}
+lerobot-train \
+    --dataset.repo_id=${HF_USER}/so101_test \
+    --policy.type=act \
+    --output_dir=outputs/train/${JOB_NAME} \
+    --job_name=${JOB_NAME} \
+    --policy.device=cuda \
+    --policy.push_to_hub=true \
+    --policy.repo_id=${HF_USER}/${JOB_NAME} \
+    --save_freq=5000 \
+    --steps=50000 \
+    --batch_size=8 \
+    --policy.chunk_size=${CHUNK} \
+    --policy.n_action_steps=${ACTION} \
+    --wandb.enable=true
+```
+
+ACT 调参实验模板（更深 decoder + 轻量增强）
+```bash
+export HF_USER=lepao
+export JOB_NAME=act_so101_chunk16_dec7_aug
+lerobot-train \
+    --dataset.repo_id=${HF_USER}/so101_test \
+    --policy.type=act \
+    --output_dir=outputs/train/${JOB_NAME} \
+    --job_name=${JOB_NAME} \
+    --policy.device=cuda \
+    --policy.push_to_hub=true \
+    --policy.repo_id=${HF_USER}/${JOB_NAME} \
+    --save_freq=5000 \
+    --steps=50000 \
+    --batch_size=8 \
+    --policy.chunk_size=16 \
+    --policy.n_action_steps=16 \
+    --policy.n_decoder_layers=7 \
+    --dataset.image_transforms.enable=true \
+    --dataset.image_transforms.tfs='{"affine": {"weight": 1.0, "type": "RandomAffine", "kwargs": {"degrees": [-10, 10], "translate": [0.1, 0.1]}}}' \
+    --wandb.enable=true
+```
+
+ACT 长训练模板（在上面实验中选出最优配置后再继续拉长）
+```bash
+export HF_USER=lepao
+export JOB_NAME=act_so101_chunk16_dec7_aug_100k
+lerobot-train \
+    --dataset.repo_id=${HF_USER}/so101_test \
+    --policy.type=act \
+    --output_dir=outputs/train/${JOB_NAME} \
+    --job_name=${JOB_NAME} \
+    --policy.device=cuda \
+    --policy.push_to_hub=true \
+    --policy.repo_id=${HF_USER}/${JOB_NAME} \
+    --save_freq=5000 \
+    --steps=100000 \
+    --batch_size=8 \
+    --policy.chunk_size=16 \
+    --policy.n_action_steps=16 \
+    --policy.n_decoder_layers=7 \
+    --dataset.image_transforms.enable=true \
+    --dataset.image_transforms.tfs='{"affine": {"weight": 1.0, "type": "RandomAffine", "kwargs": {"degrees": [-10, 10], "translate": [0.1, 0.1]}}}' \
+    --wandb.enable=true
 ```
 
 训练smolvla
