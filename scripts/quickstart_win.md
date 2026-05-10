@@ -4,8 +4,8 @@
 conda create -y -n lerobot python=3.12
 conda activate lerobot
 
-conda install ffmpeg -c conda-forge
-conda install evdev -c conda-forge
+conda install -y ffmpeg -c conda-forge
+conda install -y evdev -c conda-forge
 
 pip install -e .
 pip install -e ".[feetech]"
