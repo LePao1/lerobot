@@ -255,12 +255,3 @@ python -m lerobot.async_inference.policy_server \
      --host=0.0.0.0 \
      --port=8080
 ```
-
-> **注意**: `--host=0.0.0.0` 允许外部连接。如果远程服务器有防火墙，需要开放 8080 端口。
-
-
-## 性能调优建议
-
-1. **如果动作队列经常为空**: 降低 `--fps` 或增加 `--actions_per_chunk`
-2. **如果网络延迟高**: 增加 `--chunk_size_threshold` 到 0.6-0.7
-3. **监控队列状态**: 添加 `--debug_visualize_queue_size=true`
