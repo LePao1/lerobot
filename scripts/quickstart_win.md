@@ -270,12 +270,12 @@ pip install -e ".[async]"
 # 在远程 GPU 服务器上运行
 python -m lerobot.async_inference.policy_server `
      --host=0.0.0.0 `
-     --port=8080
+     --port=6006
 ```
 
 ### 6.2.3、通过ssh将远程服务器端口映射到本地
 ```powershell
- ssh -CNg -L 8080:127.0.0.1:8080 root@123.456.789.123 -p 30499
+ ssh -CNg -L 6006:127.0.0.1:6006 root@123.456.789.123 -p 30499
 ```
 
 ### 6.2.4、在本地电脑启动 RobotClient（连接 SO-101）
@@ -283,14 +283,14 @@ python -m lerobot.async_inference.policy_server `
 act 模型
 ```powershell
 python -m lerobot.async_inference.robot_client `
-    --server_address=127.0.0.1:8080 `
+    --server_address=127.0.0.1:6006 `
     --robot.type=so101_follower `
-    --robot.port=COM4 `
+    --robot.port=COM3 `
     --robot.id=0 `
     --robot.cameras="{ 'handeye': {'type': 'opencv', 'index_or_path': 0, 'width': 640, 'height': 360, 'fps': 30, 'fourcc': 'MJPG'}, 'fixed': {'type': 'opencv', 'index_or_path': 1, 'width': 640, 'height': 360, 'fps': 30, 'fourcc': 'MJPG'}}" `
     --task="Grab the paper cube" `
     --policy_type=act `
-    --pretrained_name_or_path=outputs/train/act_so101_test/checkpoints/last/pretrained_model `
+    --pretrained_name_or_path=lepao/act_so101_test_v0.1 `
     --policy_device=cuda `
     --client_device=cpu `
     --actions_per_chunk=100 `
