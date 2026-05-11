@@ -35,7 +35,7 @@ python scripts/eval_act.py --model v0.1 chunk16 chunk16_dec7_aug
 python scripts/eval_act.py --model v0.1 --diagnose
 ```
 
-模型快捷名: `v0.1` / `chunk16` / `chunk16_dec7_aug` / `exp2_kl5` / `exp3_kl5_obs3` / `exp4_dec7` / `exp5_aug`
+模型快捷名: `v0.1` / `chunk16` / `chunk16_dec7_aug` / `exp2_kl5` / `exp3_dec7` / `exp4_aug`
 
 结果输出: `outputs/eval_results.json`
 
@@ -84,14 +84,15 @@ python scripts/eval_act.py --model v0.1 --diagnose
 
 ### 实验矩阵
 
-| 实验      | chunk | act    | kl    | obs   | decoder | aug   | 状态     | 验证目标            |
-| ------- | ----- | ------ | ----- | ----- | ------- | ----- | ------ | --------------- |
-| v0.1 基线 | 100   | 100→20 | 10    | 1     | 1       | ✗     | 已完成    | -               |
-| 实验1     | 100   | 20     | 10    | 1     | 1       | ✗     | 离线验证完成 | act=20 效果       |
-| 实验2     | 100   | 20     | **5** | 1     | 1       | ✗     | 待训练    | kl\_weight 降到 5 |
-| 实验3     | 100   | 20     | **5** | **3** | 1       | ✗     | 待训练    | 历史观测帧           |
-| 实验4     | 100   | 20     | 10    | 1     | **7**   | ✗     | 待训练    | decoder 深度      |
-| 实验5     | 100   | 20     | 10    | 1     | 1       | **✓** | 待训练    | 数据增强            |
+| 实验      | chunk | act    | kl    | decoder | aug   | 状态     | 验证目标            |
+| ------- | ----- | ------ | ----- | ------- | ----- | ------ | --------------- |
+| v0.1 基线 | 100   | 100→20 | 10    | 1       | ✗     | 已完成    | -               |
+| 实验1     | 100   | 20     | 10    | 1       | ✗     | 离线验证完成 | act=20 效果       |
+| 实验2     | 100   | 20     | **5** | 1       | ✗     | 待训练    | kl\_weight 降到 5 |
+| 实验3     | 100   | 20     | 10    | **7**   | ✗     | 待训练    | decoder 深度      |
+| 实验4     | 100   | 20     | 10    | 1       | **✓** | 待训练    | 数据增强            |
+
+> **注意**: ACT 策略不支持 `n_obs_steps > 1`（代码硬编码限制），历史观测帧实验已移除。
 
 ### 训练命令
 
@@ -115,29 +116,9 @@ lerobot-train \
     --policy.kl_weight=5.0 \
     --wandb.enable=true
 
-# 实验3: kl_weight=5 + n_obs_steps=3
+# 实验3(对照): n_decoder_layers=7
 export HF_USER=lepao
-export JOB_NAME=act_so101_v02_exp3_chunk100_act20_kl5_obs3
-lerobot-train \
-    --dataset.repo_id=${HF_USER}/so101_test \
-    --policy.type=act \
-    --output_dir=outputs/train/${JOB_NAME} \
-    --job_name=${JOB_NAME} \
-    --policy.device=cuda \
-    --policy.push_to_hub=true \
-    --policy.repo_id=${HF_USER}/${JOB_NAME} \
-    --save_freq=20000 \
-    --steps=100000 \
-    --batch_size=8 \
-    --policy.chunk_size=100 \
-    --policy.n_action_steps=20 \
-    --policy.kl_weight=5.0 \
-    --policy.n_obs_steps=3 \
-    --wandb.enable=true
-
-# 实验4(对照): n_decoder_layers=7
-export HF_USER=lepao
-export JOB_NAME=act_so101_v02_exp4_chunk100_act20_dec7
+export JOB_NAME=act_so101_v02_exp3_chunk100_act20_dec7
 lerobot-train \
     --dataset.repo_id=${HF_USER}/so101_test \
     --policy.type=act \
@@ -155,9 +136,9 @@ lerobot-train \
     --policy.n_decoder_layers=7 \
     --wandb.enable=true
 
-# 实验5(对照): 数据增强
+# 实验4(对照): 数据增强（仅 affine，参考 PushT 最优方案）
 export HF_USER=lepao
-export JOB_NAME=act_so101_v02_exp5_chunk100_act20_aug
+export JOB_NAME=act_so101_v02_exp4_chunk100_act20_aug
 lerobot-train \
     --dataset.repo_id=${HF_USER}/so101_test \
     --policy.type=act \
@@ -173,6 +154,7 @@ lerobot-train \
     --policy.n_action_steps=20 \
     --policy.kl_weight=10.0 \
     --dataset.image_transforms.enable=true \
+    --dataset.image_transforms.tfs='{"affine": {"weight": 1.0, "type": "RandomAffine", "kwargs": {"degrees": [-10, 10], "translate": [0.1, 0.1]}}}' \
     --wandb.enable=true
 ```
 
@@ -219,49 +201,37 @@ python -m lerobot.async_inference.robot_client `
 
 | 指标           | 结果     |
 | ------------ | ------ |
-| 日期           | <br /> |
-| 训练 loss      | <br /> |
-| 离线 MSE (20步) | <br /> |
-| 离线 MAE (20步) | <br /> |
-| Delta ratio  | <br /> |
-| 实机表现         | <br /> |
-| 备注           | <br /> |
+| 日期           |  |
+| 训练 loss      |  |
+| 离线 MSE (20步) |  |
+| 离线 MAE (20步) |  |
+| Delta ratio  |  |
+| 实机表现         |  |
+| 备注           |  |
 
-### 实验3: kl=5 + obs=3
-
-| 指标           | 结果     |
-| ------------ | ------ |
-| 日期           | <br /> |
-| 训练 loss      | <br /> |
-| 离线 MSE (20步) | <br /> |
-| 离线 MAE (20步) | <br /> |
-| Delta ratio  | <br /> |
-| 实机表现         | <br /> |
-| 备注           | <br /> |
-
-### 实验4(对照): decoder=7
+### 实验3(对照): decoder=7
 
 | 指标           | 结果     |
 | ------------ | ------ |
-| 日期           | <br /> |
-| 训练 loss      | <br /> |
-| 离线 MSE (20步) | <br /> |
-| 离线 MAE (20步) | <br /> |
-| Delta ratio  | <br /> |
-| 实机表现         | <br /> |
-| 备注           | <br /> |
+| 日期           |  |
+| 训练 loss      |  |
+| 离线 MSE (20步) |  |
+| 离线 MAE (20步) |  |
+| Delta ratio  |  |
+| 实机表现         |  |
+| 备注           |  |
 
-### 实验5(对照): 数据增强
+### 实验4(对照): 数据增强
 
 | 指标           | 结果     |
 | ------------ | ------ |
-| 日期           | <br /> |
-| 训练 loss      | <br /> |
-| 离线 MSE (20步) | <br /> |
-| 离线 MAE (20步) | <br /> |
-| Delta ratio  | <br /> |
-| 实机表现         | <br /> |
-| 备注           | <br /> |
+| 日期           |  |
+| 训练 loss      |  |
+| 离线 MSE (20步) |  |
+| 离线 MAE (20步) |  |
+| Delta ratio  |  |
+| 实机表现         |  |
+| 备注           |  |
 
 ## 8、经验总结
 
@@ -275,9 +245,8 @@ python -m lerobot.async_inference.robot_client `
 ### 待验证的假设
 
 1. kl\_weight=5 能否减少 VAE "平均化"（实验2）
-2. n\_obs\_steps=3 是否帮助运动估计（实验3）
-3. n\_decoder\_layers=7 在 chunk=100 基准下的表现（实验4）
-4. 数据增强在小数据集上的效果（实验5）
+2. n\_decoder\_layers=7 在 chunk=100 基准下的表现（实验3）
+3. 数据增强在小数据集上的效果（实验4）
 
 ### 后续方向
 
