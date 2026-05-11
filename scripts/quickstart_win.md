@@ -138,61 +138,7 @@ lerobot-dataset-viz --repo-id lepao/so101_test --episode-index 0
 
 # 5、训练
 
-训练 act 模型
-```powershell
-export HF_USER=lepao
-lerobot-train `
-    --dataset.repo_id=${HF_USER}/so101_test `
-    --policy.type=act \
-    --output_dir=outputs/train/act_so101_test `
-    --job_name=act_so101_test `
-    --policy.device=cuda `
-    --policy.push_to_hub=true `
-    --policy.repo_id=${HF_USER}/act_so101_test `
-    --save_freq=5000 `
-    --steps=20000 `
-    --batch_size=128 `
-    --wandb.enable=false
-```
-
-训练smolvla
-```powershell
-pip install -e ".[smolvla]"
-```
-```powershell
-export HF_USER=lepao
-lerobot-train `
-    --dataset.repo_id=${HF_USER}/so101_test `
-    --policy.type=smolvla `
-    --output_dir=outputs/train/smolvla_so101_test `
-    --job_name=smolvla_so101_test `
-    --policy.device=cuda `
-    --policy.push_to_hub=true `
-    --policy.repo_id=${HF_USER}/smolvla_so101_test `
-    --save_freq=1000 `
-    --batch_size=128 `
-    --steps=20000 `
-    --wandb.enable=false
-```
-继续训练模型
-```bash
-lerobot-train `
-  --config_path=outputs/train/act_so101_test/checkpoints/last/pretrained_model/train_config.json `
-  --resume=true
-
-lerobot-train `
-  --config_path=outputs/train/smolvla_so101_test/checkpoints/last/pretrained_model/train_config.json `
-  --resume=true
-```
-
-上传模型
-```bash
-hf upload lepao/act_so101_test `
-  outputs/train/act_so101_test/checkpoints/last/pretrained_model
-
-hf upload lepao/smolvla_so101_test `
-  outputs/train/smolvla_so101_test/checkpoints/last/pretrained_model
-```
+省略
 
 
 # 6、推理
@@ -234,11 +180,6 @@ lerobot-record  `
   --dataset.push_to_hub=false
 ```
 
-上传数据集
-```
-hf upload lepao/so101_test \
-  outputs/dataset/so101_test
-```
 
 ## 6.2、远程推理（本地算力不足时使用）
 

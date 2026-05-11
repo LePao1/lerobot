@@ -273,30 +273,7 @@ hf upload lepao/smolvla_so101_test \
 
 # 6、推理
 
-## 6.1、本地推理
-
-清除验证集
-```bash
-rm -r ~/.cache/huggingface/lerobot/lepao/eval_so101
-```
-推理并录制
-```bash
-lerobot-record  \
-  --robot.type=so101_follower \
-  --robot.port=/dev/ttyACM0 \
-  --robot.id=0 \
-  --teleop.type=so101_leader \
-  --teleop.port=/dev/ttyACM1 \
-  --teleop.id=1 \
-  --robot.cameras="{ 'handeye': {'type': 'opencv', 'index_or_path': '/dev/video0', 'width': 640, 'height': 360, 'fps': 30, 'fourcc': 'MJPG'}, 'fixed': {'type': 'opencv', 'index_or_path': '/dev/video2', 'width': 640, 'height': 360, 'fps': 30, 'fourcc': 'MJPG'}}" \
-  --policy.path=lepao/act_so101_test \
-  --dataset.single_task="Grab the paper cube" \
-  --policy.device=cpu \
-  --dataset.repo_id=lepao/eval_so101 \
-  --dataset.push_to_hub=false
-```
-
-## 6.2、远程推理（本地算力不足时使用）
+## 6.1、远程推理（本地算力不足时使用）
 
 当本地电脑算力不足时，可以将模型放在远程 GPU 服务器上进行推理，本地电脑只负责连接 SO-101 执行动作。
 
