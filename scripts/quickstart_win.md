@@ -145,23 +145,6 @@ lerobot-dataset-viz --repo-id lepao/so101_test --episode-index 0
 
 ## 6.1、本地推理
 
-smolvla_so101_test 模型
-
-```powershell
-lerobot-record  `
-  --robot.type=so101_follower `
-  --robot.port=COM4 `
-  --robot.id=0 `
-  --teleop.type=so101_leader `
-  --teleop.port=COM5 `
-  --teleop.id=1 `
-  --robot.cameras="{ 'handeye': {'type': 'opencv', 'index_or_path': 0, 'width': 640, 'height': 360, 'fps': 30, 'fourcc': 'MJPG'}, 'fixed': {'type': 'opencv', 'index_or_path': 1, 'width': 640, 'height': 360, 'fps': 30, 'fourcc': 'MJPG'}}" `
-  --policy.path=lepao/smolvla_so101_test `
-  --dataset.single_task="Grab the paper cube" `
-  --policy.device=cpu `
-  --dataset.repo_id=lepao/eval_so101 `
-  --dataset.push_to_hub=false
-```
 act_so101_test 模型
 
 ```powershell
@@ -236,24 +219,6 @@ python -m lerobot.async_inference.robot_client `
     --client_device=cpu `
     --actions_per_chunk=100 `
     --chunk_size_threshold=0.1 `
-    --aggregate_fn_name=weighted_average `
-    --debug_visualize_queue_size=true
-```
-smolvla 模型
-```powershell
-python -m lerobot.async_inference.robot_client `
-    --server_address=127.0.0.1:8080 `
-    --robot.type=so101_follower `
-    --robot.port=COM4 `
-    --robot.id=0 `
-    --robot.cameras="{ 'handeye': {'type': 'opencv', 'index_or_path': 0, 'width': 640, 'height': 360, 'fps': 30, 'fourcc': 'MJPG'}, 'fixed': {'type': 'opencv', 'index_or_path': 1, 'width': 640, 'height': 360, 'fps': 30, 'fourcc': 'MJPG'}}" `
-    --task="Grab the paper cube" `
-    --policy_type=smolvla `
-    --pretrained_name_or_path=outputs/train/smolvla_so101_test/checkpoints/last/pretrained_model `
-    --policy_device=cuda `
-    --client_device=cpu `
-    --actions_per_chunk=60 `
-    --chunk_size_threshold=0.3 `
     --aggregate_fn_name=weighted_average `
     --debug_visualize_queue_size=true
 ```

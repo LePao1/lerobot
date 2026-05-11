@@ -231,33 +231,10 @@ lerobot-train \
     --wandb.enable=true
 ```
 
-训练smolvla
-```bash
-pip install -e ".[smolvla]"
-```
-```bash
-export HF_USER=lepao
-lerobot-train \
-    --dataset.repo_id=${HF_USER}/so101_test \
-    --policy.type=smolvla \
-    --output_dir=outputs/train/smolvla_so101_test \
-    --job_name=smolvla_so101_test \
-    --policy.device=cuda \
-    --policy.push_to_hub=true \
-    --policy.repo_id=${HF_USER}/smolvla_so101_test \
-    --save_freq=1000 \
-    --batch_size=128 \
-    --steps=20000 \
-    --wandb.enable=false
-```
 继续训练模型
 ```bash
 lerobot-train \
   --config_path=outputs/train/act_so101_test/checkpoints/last/pretrained_model/train_config.json \
-  --resume=true
-
-lerobot-train \
-  --config_path=outputs/train/smolvla_so101_test/checkpoints/last/pretrained_model/train_config.json \
   --resume=true
 ```
 
@@ -265,9 +242,6 @@ lerobot-train \
 ```bash
 hf upload lepao/act_so101_test \
   outputs/train/act_so101_test/checkpoints/last/pretrained_model
-
-hf upload lepao/smolvla_so101_test \
-  outputs/train/smolvla_so101_test/checkpoints/last/pretrained_model
 ```
 
 
