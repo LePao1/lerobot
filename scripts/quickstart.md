@@ -145,7 +145,7 @@ lerobot-record \
 训练 act 模型（基线）
 ```bash
 export HF_USER=lepao
-export JOB_NAME=act_so101_test
+export JOB_NAME=act_so101_test_v0.1
 lerobot-train \
     --dataset.repo_id=${HF_USER}/so101_test \
     --policy.type=act \
@@ -154,8 +154,8 @@ lerobot-train \
     --policy.device=cuda \
     --policy.push_to_hub=true \
     --policy.repo_id=${HF_USER}/${JOB_NAME} \
-    --save_freq=5000 \
-    --steps=50000 \
+    --save_freq=10000 \
+    --steps=100000 \
     --batch_size=8 \
     --wandb.enable=true
 ```
@@ -177,8 +177,8 @@ lerobot-train \
     --policy.device=cuda \
     --policy.push_to_hub=true \
     --policy.repo_id=${HF_USER}/${JOB_NAME} \
-    --save_freq=5000 \
-    --steps=50000 \
+    --save_freq=10000 \
+    --steps=100000 \
     --batch_size=8 \
     --policy.chunk_size=${CHUNK} \
     --policy.n_action_steps=${ACTION} \
@@ -197,8 +197,8 @@ lerobot-train \
     --policy.device=cuda \
     --policy.push_to_hub=true \
     --policy.repo_id=${HF_USER}/${JOB_NAME} \
-    --save_freq=5000 \
-    --steps=50000 \
+    --save_freq=20000 \
+    --steps=100000 \
     --batch_size=8 \
     --policy.chunk_size=16 \
     --policy.n_action_steps=16 \
@@ -220,7 +220,7 @@ lerobot-train \
     --policy.device=cuda \
     --policy.push_to_hub=true \
     --policy.repo_id=${HF_USER}/${JOB_NAME} \
-    --save_freq=5000 \
+    --save_freq=20000 \
     --steps=100000 \
     --batch_size=8 \
     --policy.chunk_size=16 \
