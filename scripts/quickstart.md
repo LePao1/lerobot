@@ -276,5 +276,5 @@ pip install -e ".[async]"
 # 在远程 GPU 服务器上运行
 python -m lerobot.async_inference.policy_server \
      --host=0.0.0.0 \
-     --port=8080
+     --port=6006
 ```
