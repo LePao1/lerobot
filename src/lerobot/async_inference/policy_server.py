@@ -325,6 +325,10 @@ class PolicyServer(services_pb2_grpc.AsyncInferenceServicer):
 
     def _get_action_chunk(self, observation: dict[str, torch.Tensor]) -> torch.Tensor:
         """Get an action chunk from the policy. The chunk contains only"""
+        if self.policy_type == "diffusion":
+            actions = [self.policy.select_action(observation) for _ in range(self.actions_per_chunk)]
+            return torch.stack(actions, dim=1)
+
         chunk = self.policy.predict_action_chunk(observation)
         if chunk.ndim != 3:
             chunk = chunk.unsqueeze(0)  # adding batch dimension, now shape is (B, chunk_size, action_dim)
