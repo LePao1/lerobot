@@ -20,6 +20,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+import cv2
+import numpy as np
 import torch
 
 from lerobot.configs.types import PolicyFeature
@@ -42,6 +44,8 @@ Action = torch.Tensor
 
 # observation as received from the robot (can be numpy arrays, floats, etc.)
 RawObservation = dict[str, Any]
+
+COMPRESSED_IMAGE_MARKER = "__lerobot_jpeg_image__"
 
 # observation as those recorded in LeRobot dataset (keys are different)
 LeRobotObservation = dict[str, torch.Tensor]
@@ -69,6 +73,53 @@ def map_robot_keys_to_lerobot_features(robot: Robot) -> dict[str, dict]:
 
 def is_image_key(k: str) -> bool:
     return k.startswith(OBS_IMAGES)
+
+
+def _is_rgb_image(value: Any) -> bool:
+    return isinstance(value, np.ndarray) and value.ndim == 3 and value.shape[2] == 3
+
+
+def compress_raw_observation_images(raw_observation: RawObservation, jpeg_quality: int) -> RawObservation:
+    """Return a copy of raw_observation with RGB camera images encoded as JPEG bytes."""
+    if jpeg_quality <= 0:
+        return raw_observation
+
+    compressed_observation = dict(raw_observation)
+    encode_params = [int(cv2.IMWRITE_JPEG_QUALITY), jpeg_quality]
+
+    for key, value in raw_observation.items():
+        if not _is_rgb_image(value):
+            continue
+
+        bgr_image = cv2.cvtColor(value, cv2.COLOR_RGB2BGR)
+        success, encoded = cv2.imencode(".jpg", bgr_image, encode_params)
+        if not success:
+            raise ValueError(f"Failed to JPEG-encode observation image '{key}'")
+
+        compressed_observation[key] = {
+            COMPRESSED_IMAGE_MARKER: True,
+            "data": encoded.tobytes(),
+        }
+
+    return compressed_observation
+
+
+def decompress_raw_observation_images(raw_observation: RawObservation) -> RawObservation:
+    """Return a copy of raw_observation with JPEG-encoded images decoded to RGB arrays."""
+    decompressed_observation = dict(raw_observation)
+
+    for key, value in raw_observation.items():
+        if not (isinstance(value, dict) and value.get(COMPRESSED_IMAGE_MARKER)):
+            continue
+
+        encoded = np.frombuffer(value["data"], dtype=np.uint8)
+        bgr_image = cv2.imdecode(encoded, cv2.IMREAD_COLOR)
+        if bgr_image is None:
+            raise ValueError(f"Failed to JPEG-decode observation image '{key}'")
+
+        decompressed_observation[key] = cv2.cvtColor(bgr_image, cv2.COLOR_BGR2RGB)
+
+    return decompressed_observation
 
 
 def resize_robot_observation_image(image: torch.tensor, resize_dims: tuple[int, int, int]) -> torch.tensor:

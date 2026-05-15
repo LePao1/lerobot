@@ -136,6 +136,10 @@ class RobotClientConfig:
     # Control behavior configuration
     chunk_size_threshold: float = field(default=0.5, metadata={"help": "Threshold for chunk size control"})
     fps: int = field(default=DEFAULT_FPS, metadata={"help": "Frames per second"})
+    observation_image_compression_quality: int = field(
+        default=85,
+        metadata={"help": "JPEG quality for observation image compression. Set to 0 to disable."},
+    )
 
     # Aggregate function configuration (CLI-compatible)
     aggregate_fn_name: str = field(
@@ -179,6 +183,12 @@ class RobotClientConfig:
         if self.actions_per_chunk <= 0:
             raise ValueError(f"actions_per_chunk must be positive, got {self.actions_per_chunk}")
 
+        if self.observation_image_compression_quality < 0 or self.observation_image_compression_quality > 100:
+            raise ValueError(
+                "observation_image_compression_quality must be between 0 and 100, "
+                f"got {self.observation_image_compression_quality}"
+            )
+
         self.aggregate_fn = get_aggregate_function(self.aggregate_fn_name)
 
     @classmethod
@@ -197,6 +207,7 @@ class RobotClientConfig:
             "chunk_size_threshold": self.chunk_size_threshold,
             "fps": self.fps,
             "actions_per_chunk": self.actions_per_chunk,
+            "observation_image_compression_quality": self.observation_image_compression_quality,
             "task": self.task,
             "debug_visualize_queue_size": self.debug_visualize_queue_size,
             "aggregate_fn_name": self.aggregate_fn_name,
