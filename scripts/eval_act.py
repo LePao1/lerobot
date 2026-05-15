@@ -41,6 +41,11 @@ SHORTCUTS = {
     "exp2_kl5": "outputs/train/act_so101_v02_exp2_chunk100_act20_kl5/checkpoints/100000/pretrained_model",
     "exp3_dec7": "outputs/train/act_so101_v02_exp3_chunk100_act20_dec7/checkpoints/100000/pretrained_model",
     "exp4_aug": "outputs/train/act_so101_v02_exp4_chunk100_act20_aug/checkpoints/100000/pretrained_model",
+    "exp5": "outputs/train/act_so101_v03_exp5_chunk40/checkpoints/100000/pretrained_model",
+    "exp6": "outputs/train/act_so101_v03_exp6_chunk60/checkpoints/100000/pretrained_model",
+    "exp7": "outputs/train/act_so101_v03_exp7_chunk80/checkpoints/100000/pretrained_model",
+    "exp8": "outputs/train/act_so101_v04_exp8_resnet34/checkpoints/100000/pretrained_model",
+    "exp9": "outputs/train/act_so101_v04_exp9_resnet50/checkpoints/100000/pretrained_model",
 }
 
 DEFAULT_EPISODE_SPLITS = {
