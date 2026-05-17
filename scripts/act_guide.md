@@ -455,3 +455,87 @@ python scripts/eval_act.py --model exp8 --eval_steps 100 --mode rollout
 python scripts/eval_act.py --model exp9 --eval_steps 100 --mode rollout
 ```
 
+### 下一次实验：resnet101 与 resnet50 长训
+
+**实机观察**: `act_so101_v04_exp9_resnet50` 比其他 ACT checkpoint 效果更好，说明当前任务可能仍受视觉特征能力限制。虽然 181 ep 数据量下 resnet101/152 有过拟合风险，但值得按从小到大的顺序做一次受控实验。
+
+**建议顺序**:
+
+1. **exp10: resnet101** — 优先实验，容量大于 resnet50，但训练/推理成本仍可控
+2. **exp11: resnet50 长训 + cosine 学习率调度** — 不做 resnet152，先验证 exp9 是否只是训练步数不足
+
+**保持不变**:
+
+- `chunk_size=100`
+- `n_action_steps=100`
+- `kl_weight=10.0`
+- `batch_size=8`（若爆显存，降到 4，并在结果表中标注）
+
+```bash
+# exp10: resnet101
+export HF_USER=lepao
+export JOB_NAME=act_so101_v04_exp10_resnet101
+lerobot-train \
+    --dataset.repo_id=${HF_USER}/so101_test \
+    --policy.type=act \
+    --output_dir=outputs/train/${JOB_NAME} \
+    --job_name=${JOB_NAME} \
+    --policy.device=cuda \
+    --policy.push_to_hub=true \
+    --policy.repo_id=${HF_USER}/${JOB_NAME} \
+    --save_freq=20000 \
+    --steps=100000 \
+    --batch_size=8 \
+    --policy.chunk_size=100 \
+    --policy.n_action_steps=100 \
+    --policy.kl_weight=10.0 \
+    --policy.vision_backbone=resnet101 \
+    --policy.pretrained_backbone_weights=ResNet101_Weights.IMAGENET1K_V1 \
+    --wandb.enable=true
+```
+
+```bash
+# exp11: resnet50 长训 + cosine 学习率调度
+export HF_USER=lepao
+export JOB_NAME=act_so101_v04_exp11_resnet50_300k_cosine
+lerobot-train \
+    --dataset.repo_id=${HF_USER}/so101_test \
+    --policy.type=act \
+    --output_dir=outputs/train/${JOB_NAME} \
+    --job_name=${JOB_NAME} \
+    --policy.device=cuda \
+    --policy.push_to_hub=true \
+    --policy.repo_id=${HF_USER}/${JOB_NAME} \
+    --save_freq=50000 \
+    --steps=300000 \
+    --batch_size=8 \
+    --policy.chunk_size=100 \
+    --policy.n_action_steps=100 \
+    --policy.kl_weight=10.0 \
+    --policy.vision_backbone=resnet50 \
+    --policy.pretrained_backbone_weights=ResNet50_Weights.IMAGENET1K_V1 \
+    --wandb.enable=true \
+    --scheduler.type=cosine_decay_with_warmup \
+    --scheduler.num_warmup_steps=5000 \
+    --scheduler.num_decay_steps=300000 \
+    --scheduler.peak_lr=1e-5 \
+    --scheduler.decay_lr=1e-6
+```
+
+**exp11 设计意图**:
+
+- 与 exp9 只改变训练策略：`100k constant lr` → `300k cosine warmup/decay`
+- 保持 backbone 仍为 resnet50，避免同时改变模型容量和训练长度
+- 如果 exp11 优于 exp9，说明 ACT 仍受训练充分性影响；如果无提升，再停止长训方向
+- 暂不做 resnet152，避免在小数据集上过拟合并增加远程推理延迟
+
+**推理建议**:
+
+```bash
+--actions_per_chunk=100 \
+--chunk_size_threshold=0.8 \
+--aggregate_fn_name=latest_only \
+--observation_image_compression_quality=80
+```
+
+> 远程 SSH 推理时不要降低 `actions_per_chunk`，否则动作缓存变短，网络抖动更容易导致机械臂停顿。
