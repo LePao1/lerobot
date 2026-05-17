@@ -139,6 +139,40 @@ lerobot-record \
     --robot.disable_torque_on_disconnect=true
 ```
 
+查看数据集
+```bash
+lerobot-dataset-viz \
+    --repo-id lepao/so101_test \
+    --episode-index 0
+```
+
+查看所有相机的数据增强效果
+```bash
+lerobot-imgtransform-viz \
+    --repo_id lepao/so101_test \
+    --episodes "[0]" \
+    --image_transforms.enable true \
+    --all_cameras true
+```
+
+指定第 100 帧，并指定输出目录
+```bash
+lerobot-imgtransform-viz \
+    --repo_id lepao/so101_test \
+    --episodes "[0]" \
+    --image_transforms.enable true \
+    --all_cameras true \
+    --frame_index 100 \
+    --output_dir outputs/my_image_transforms
+```
+
+输出目录示例
+```bash
+outputs/image_transforms/so101_test/
+├── observation_images_fixed/
+└── observation_images_handeye/
+```
+
 
 # 5、训练
 

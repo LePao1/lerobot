@@ -23,13 +23,16 @@ Example:
 lerobot-imgtransform-viz \
   --repo_id=lerobot/pusht \
   --episodes='[0]' \
-  --image_transforms.enable=True
+  --image_transforms.enable=True \
+  --all_cameras=True \
+  --frame_index=0 \
+  --output_dir=outputs/image_transforms
 ```
 """
 
 import logging
 from copy import deepcopy
-from dataclasses import replace
+from dataclasses import dataclass, replace
 from pathlib import Path
 
 import draccus
@@ -44,7 +47,22 @@ from lerobot.datasets.transforms import (
 )
 
 OUTPUT_DIR = Path("outputs/image_transforms")
+N_EXAMPLES = 5
 to_pil = ToPILImage()
+
+
+@dataclass
+class ImageTransformVizConfig(DatasetConfig):
+    # Save visualizations to this directory. The dataset name is appended under this directory.
+    output_dir: Path = OUTPUT_DIR
+    # Use this frame index from the selected dataset/episodes.
+    frame_index: int = 0
+    # Save visualizations for all camera keys instead of only the first camera.
+    all_cameras: bool = False
+
+
+def sanitize_path_component(value: str) -> str:
+    return value.replace("/", "_").replace(".", "_")
 
 
 def save_all_transforms(cfg: ImageTransformsConfig, original_frame, output_dir, n_examples):
@@ -104,26 +122,55 @@ def save_each_transform(cfg: ImageTransformsConfig, original_frame, output_dir, 
         print(f"    {output_dir_single}")
 
 
+def save_camera_transforms(
+    cfg: ImageTransformsConfig,
+    original_frame,
+    output_dir: Path,
+    camera_key: str,
+    frame_index: int,
+):
+    output_dir.mkdir(parents=True, exist_ok=True)
+    to_pil(original_frame).save(output_dir / "original_frame.png", quality=100)
+    print("\nOriginal frame saved to:")
+    print(f"    {output_dir / 'original_frame.png'}")
+    print(f"    camera_key={camera_key}, frame_index={frame_index}")
+
+    save_all_transforms(cfg, original_frame, output_dir, N_EXAMPLES)
+    save_each_transform(cfg, original_frame, output_dir, N_EXAMPLES)
+
+
 @draccus.wrap()
-def visualize_image_transforms(cfg: DatasetConfig, output_dir: Path = OUTPUT_DIR, n_examples: int = 5):
+def visualize_image_transforms(cfg: ImageTransformVizConfig):
     dataset = LeRobotDataset(
         repo_id=cfg.repo_id,
+        root=cfg.root,
         episodes=cfg.episodes,
         revision=cfg.revision,
         video_backend=cfg.video_backend,
     )
 
-    output_dir = output_dir / cfg.repo_id.split("/")[-1]
-    output_dir.mkdir(parents=True, exist_ok=True)
+    if cfg.frame_index < 0 or cfg.frame_index >= len(dataset):
+        raise ValueError(f"frame_index must be in [0, {len(dataset) - 1}], got {cfg.frame_index}.")
 
-    # Get 1st frame from 1st camera of 1st episode
-    original_frame = dataset[0][dataset.meta.camera_keys[0]]
-    to_pil(original_frame).save(output_dir / "original_frame.png", quality=100)
-    print("\nOriginal frame saved to:")
-    print(f"    {output_dir / 'original_frame.png'}.")
+    if not dataset.meta.camera_keys:
+        raise ValueError(f"Dataset {cfg.repo_id} does not contain camera keys.")
 
-    save_all_transforms(cfg.image_transforms, original_frame, output_dir, n_examples)
-    save_each_transform(cfg.image_transforms, original_frame, output_dir, n_examples)
+    output_dir = cfg.output_dir / cfg.repo_id.split("/")[-1]
+    item = dataset[cfg.frame_index]
+    camera_keys = dataset.meta.camera_keys if cfg.all_cameras else [dataset.meta.camera_keys[0]]
+
+    for camera_key in camera_keys:
+        camera_output_dir = output_dir
+        if cfg.all_cameras:
+            camera_output_dir = output_dir / sanitize_path_component(camera_key)
+
+        save_camera_transforms(
+            cfg.image_transforms,
+            item[camera_key],
+            camera_output_dir,
+            camera_key,
+            cfg.frame_index,
+        )
 
 
 def main():
