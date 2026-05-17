@@ -199,7 +199,7 @@ python -m lerobot.async_inference.policy_server `
 
 ### 6.2.3、通过ssh将远程服务器端口映射到本地
 ```powershell
- ssh -CNg -L 6006:127.0.0.1:6006 root@123.456.789.123 -p 30499
+ssh -CNg -L 6006:127.0.0.1:6006 root@connect.bjb2.seetacloud.com -p 50639
 ```
 
 ### 6.2.4、在本地电脑启动 RobotClient（连接 SO-101）
@@ -214,11 +214,11 @@ python -m lerobot.async_inference.robot_client `
     --robot.cameras="{ 'handeye': {'type': 'opencv', 'index_or_path': 0, 'width': 640, 'height': 360, 'fps': 30, 'fourcc': 'MJPG'}, 'fixed': {'type': 'opencv', 'index_or_path': 1, 'width': 640, 'height': 360, 'fps': 30, 'fourcc': 'MJPG'}}" `
     --task="Grab the paper cube" `
     --policy_type=act `
-    --pretrained_name_or_path=lepao/act_so101_test_v0.1 `
+    --pretrained_name_or_path=lepao/act_so101_v04_exp8_resnet34 `
     --policy_device=cuda `
     --client_device=cpu `
     --actions_per_chunk=100 `
     --chunk_size_threshold=0.1 `
-    --aggregate_fn_name=weighted_average `
+    --aggregate_fn_name=latest_only `
     --debug_visualize_queue_size=true
 ```
