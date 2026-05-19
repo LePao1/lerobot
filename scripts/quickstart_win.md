@@ -113,15 +113,15 @@ rm -r $HOME\.cache\huggingface\lerobot\lepao\so101_test
 $env:HF_USER="lepao"
 lerobot-record `
     --robot.type=so101_follower `
-    --robot.port=COM4 `
+    --robot.port=COM3 `
     --robot.id=0 `
     --teleop.type=so101_leader `
-    --teleop.port=COM5 `
+    --teleop.port=COM4 `
     --teleop.id=1 `
     --robot.cameras="{ 'handeye': {'type': 'opencv', 'index_or_path': 0, 'width': 640, 'height': 360, 'fps': 30, 'fourcc': 'MJPG'}, 'fixed': {'type': 'opencv', 'index_or_path': 1, 'width': 640, 'height': 360, 'fps': 30, 'fourcc': 'MJPG'}}" `
     --dataset.repo_id=$env:HF_USER/so101_test `
     --dataset.num_episodes=50 `
-    --dataset.episode_time_s=15 `
+    --dataset.episode_time_s=10 `
     --dataset.single_task="Grab the paper cube" `
     --dataset.push_to_hub=true `
     --dataset.streaming_encoding=true `
