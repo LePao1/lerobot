@@ -667,3 +667,161 @@ python scripts/eval_act.py --model exp12 exp13 --eval_steps 100 --mode rollout -
 | exp12 接近或超过 exp11 | resnet101 需要长训才稳定 | 实机测 exp12 |
 | exp13 优于 exp11 | 长训后 aug 有正收益 | 实机测 exp13，并考虑更温和 aug sweep |
 | exp13 差于 exp11 | 数据增强仍破坏小数据分布 | 保持 exp11 作为 ACT 最强候选 |
+
+### exp13 离线评估结果
+
+评估命令：
+
+```bash
+python scripts/eval_act.py --model exp13 --eval_steps 100 --mode rollout --output outputs/eval_exp13_rollout100.json
+```
+
+| 实验 | backbone | checkpoint | 训练策略 | aug | eval | MSE | MAE | Δratio | 结论 |
+| ---- | -------- | ---------- | -------- | --- | ---- | ---: | ---: | -----: | ---- |
+| exp11 | resnet50 | 300k | 300k cosine | 否 | 100 | **6.10** | **0.90** | 105.4% | 当前最优 ACT 候选 |
+| exp12 | resnet101 | 200k | 300k cosine | 否 | 100 | 42.26 | 1.99 | **104.8%** | 动作幅度接近 GT，但方向/时序误差大 |
+| exp13 | resnet50 | 300k | 300k cosine | 是 | 100 | 34.66 | 1.78 | 108.1% | 明显差于 exp11 |
+
+**结果判读**:
+
+1. exp13 相比 exp11，MSE 从 6.10 升至 34.66，约退化 5.7x；MAE 从 0.90 升至 1.78，约退化 2.0x。
+2. exp12 在 200k checkpoint 时 MSE 为 42.26、MAE 为 1.99，仍明显差于 exp11，也略差于 exp13。
+3. exp12 的 Δratio 为 104.8%，动作幅度最接近 GT，但误差仍高，说明问题主要不是动作放大，而是动作方向或时序匹配变差。
+4. 默认图像增强在当前 SO101 小数据集上仍然破坏视觉分布，不建议作为实机优先模型。
+
+**结论**: 当前实验显示 resnet50 是 SO101 ACT 的性能甜点。保持 `act_so101_v04_exp11_resnet50_300k_cosine` 作为 ACT 最强候选，优先进行实机评测；`exp12` 200k 和 `exp13` 不进入优先实机队列。
+
+exp12 200k 评估命令：
+
+```bash
+python scripts/eval_act.py --model outputs/train/act_so101_v04_exp12_resnet101_300k_cosine/checkpoints/200000/pretrained_model --eval_steps 100 --mode rollout --output outputs/eval_exp12_200k_rollout100.json
+```
+
+### v05 实验设计：600 ep + resnet50 + 500k
+
+**目标**: 数据集扩充到 600 episodes 后，基于当前最优的 `exp11` 结论继续验证 resnet50 长训路线。不再继续 resnet101/resnet152，也不做从旧 checkpoint 微调。
+
+共同固定配置：
+
+```text
+policy: ACT
+backbone: resnet50
+chunk_size: 100
+n_action_steps: 100
+kl_weight: 10.0
+steps: 500000
+batch_size: 8
+save_freq: 50000
+scheduler: cosine_decay_with_warmup
+```
+
+| 实验 | 目的 | 初始化 | aug | peak_lr | decay_lr | 结论判读 |
+| ---- | ---- | ------ | --- | ------: | -------: | -------- |
+| exp14 | 600 ep 新主基线 | 从头训练 | 否 | 1e-5 | 1e-6 | 若显著优于 exp11，说明扩数据 + 长训有效 |
+| exp15 | 低学习率长训对照 | 从头训练 | 否 | 5e-6 | 5e-7 | 若优于 exp14，说明 600 ep + 500k 需要更保守 LR |
+| exp16 | 温和图像增强对照 | 从头训练 | 温和 color jitter | 1e-5 | 1e-6 | 若优于 exp14，说明扩数据后轻量增强开始有正收益 |
+
+训练顺序建议：`exp14 -> exp15 -> exp16`。如果算力只能跑两个，优先 `exp14 + exp15`。
+
+#### exp14: resnet50 500k cosine 主基线
+
+```bash
+export HF_USER=lepao
+export JOB_NAME=act_so101_v05_exp14_resnet50_500k_cosine_600ep
+
+lerobot-train \
+    --dataset.repo_id=${HF_USER}/so101_test \
+    --dataset.revision=main \
+    --dataset.force_cache_sync=true \
+    --policy.type=act \
+    --output_dir=outputs/train/${JOB_NAME} \
+    --job_name=${JOB_NAME} \
+    --policy.device=cuda \
+    --policy.push_to_hub=true \
+    --policy.repo_id=${HF_USER}/${JOB_NAME} \
+    --save_freq=50000 \
+    --steps=500000 \
+    --batch_size=8 \
+    --policy.chunk_size=100 \
+    --policy.n_action_steps=100 \
+    --policy.kl_weight=10.0 \
+    --policy.vision_backbone=resnet50 \
+    --policy.pretrained_backbone_weights=ResNet50_Weights.IMAGENET1K_V1 \
+    --wandb.enable=true \
+    --scheduler.type=cosine_decay_with_warmup \
+    --scheduler.num_warmup_steps=10000 \
+    --scheduler.num_decay_steps=500000 \
+    --scheduler.peak_lr=1e-5 \
+    --scheduler.decay_lr=1e-6
+```
+
+#### exp15: resnet50 500k cosine 低学习率对照
+
+```bash
+export HF_USER=lepao
+export JOB_NAME=act_so101_v05_exp15_resnet50_500k_cosine_lr5e6_600ep
+
+lerobot-train \
+    --dataset.repo_id=${HF_USER}/so101_test \
+    --dataset.revision=main \
+    --dataset.force_cache_sync=true \
+    --policy.type=act \
+    --output_dir=outputs/train/${JOB_NAME} \
+    --job_name=${JOB_NAME} \
+    --policy.device=cuda \
+    --policy.push_to_hub=true \
+    --policy.repo_id=${HF_USER}/${JOB_NAME} \
+    --save_freq=50000 \
+    --steps=500000 \
+    --batch_size=8 \
+    --policy.chunk_size=100 \
+    --policy.n_action_steps=100 \
+    --policy.kl_weight=10.0 \
+    --policy.vision_backbone=resnet50 \
+    --policy.pretrained_backbone_weights=ResNet50_Weights.IMAGENET1K_V1 \
+    --wandb.enable=true \
+    --scheduler.type=cosine_decay_with_warmup \
+    --scheduler.num_warmup_steps=10000 \
+    --scheduler.num_decay_steps=500000 \
+    --scheduler.peak_lr=5e-6 \
+    --scheduler.decay_lr=5e-7
+```
+
+#### exp16: resnet50 500k cosine 温和增强对照
+
+仅对比 `exp14` 增加温和 color jitter，不使用 affine/crop/rotation/perspective，避免破坏空间几何关系。
+
+```bash
+export HF_USER=lepao
+export JOB_NAME=act_so101_v05_exp16_resnet50_500k_cosine_mildaug_600ep
+
+lerobot-train \
+    --dataset.repo_id=${HF_USER}/so101_test \
+    --dataset.revision=main \
+    --dataset.force_cache_sync=true \
+    --policy.type=act \
+    --output_dir=outputs/train/${JOB_NAME} \
+    --job_name=${JOB_NAME} \
+    --policy.device=cuda \
+    --policy.push_to_hub=true \
+    --policy.repo_id=${HF_USER}/${JOB_NAME} \
+    --save_freq=50000 \
+    --steps=500000 \
+    --batch_size=8 \
+    --policy.chunk_size=100 \
+    --policy.n_action_steps=100 \
+    --policy.kl_weight=10.0 \
+    --policy.vision_backbone=resnet50 \
+    --policy.pretrained_backbone_weights=ResNet50_Weights.IMAGENET1K_V1 \
+    --dataset.image_transforms.enable=true \
+    --dataset.image_transforms.max_num_transforms=2 \
+    --dataset.image_transforms.tfs='{"brightness":{"weight":1.0,"type":"ColorJitter","kwargs":{"brightness":[0.9,1.1]}},"contrast":{"weight":1.0,"type":"ColorJitter","kwargs":{"contrast":[0.9,1.1]}},"saturation":{"weight":0.5,"type":"ColorJitter","kwargs":{"saturation":[0.8,1.2]}}}' \
+    --wandb.enable=true \
+    --scheduler.type=cosine_decay_with_warmup \
+    --scheduler.num_warmup_steps=10000 \
+    --scheduler.num_decay_steps=500000 \
+    --scheduler.peak_lr=1e-5 \
+    --scheduler.decay_lr=1e-6
+```
+
+评估建议：每个实验在 `100k/200k/300k/400k/500k` checkpoint 上统一跑 rollout 100-step 离线评估，先看 val/test split，再决定是否进入实机评测。
