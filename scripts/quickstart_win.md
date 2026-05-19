@@ -247,5 +247,6 @@ python -m lerobot.async_inference.robot_client `
     --actions_per_chunk=100 `
     --chunk_size_threshold=0.1 `
     --aggregate_fn_name=latest_only `
-    --debug_visualize_queue_size=true
+    --debug_visualize_queue_size=true `
+    --observation_image_compression_quality=80
 ```
