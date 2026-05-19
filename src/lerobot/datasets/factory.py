@@ -86,7 +86,10 @@ def make_dataset(cfg: TrainPipelineConfig) -> LeRobotDataset | MultiLeRobotDatas
 
     if isinstance(cfg.dataset.repo_id, str):
         ds_meta = LeRobotDatasetMetadata(
-            cfg.dataset.repo_id, root=cfg.dataset.root, revision=cfg.dataset.revision
+            cfg.dataset.repo_id,
+            root=cfg.dataset.root,
+            revision=cfg.dataset.revision,
+            force_cache_sync=cfg.dataset.force_cache_sync,
         )
         delta_timestamps = resolve_delta_timestamps(cfg.policy, ds_meta)
         if not cfg.dataset.streaming:
@@ -97,6 +100,7 @@ def make_dataset(cfg: TrainPipelineConfig) -> LeRobotDataset | MultiLeRobotDatas
                 delta_timestamps=delta_timestamps,
                 image_transforms=image_transforms,
                 revision=cfg.dataset.revision,
+                force_cache_sync=cfg.dataset.force_cache_sync,
                 video_backend=cfg.dataset.video_backend,
                 tolerance_s=cfg.tolerance_s,
             )
@@ -108,6 +112,7 @@ def make_dataset(cfg: TrainPipelineConfig) -> LeRobotDataset | MultiLeRobotDatas
                 delta_timestamps=delta_timestamps,
                 image_transforms=image_transforms,
                 revision=cfg.dataset.revision,
+                force_cache_sync=cfg.dataset.force_cache_sync,
                 max_num_shards=cfg.num_workers,
                 tolerance_s=cfg.tolerance_s,
             )

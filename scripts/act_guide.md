@@ -25,7 +25,7 @@ python scripts/eval_act.py --model v0.1 exp5 exp6           # 多模型对比
 python scripts/eval_act.py --model v0.1 --diagnose          # 单帧逐维诊断
 ```
 
-模型快捷名: `v0.1` / `chunk16` / `exp2_kl5` / `exp3_dec7` / `exp4_aug` / `exp5` / `exp6` / `exp7` / `exp8` / `exp9`
+模型快捷名: `v0.1` / `chunk16` / `exp2_kl5` / `exp3_dec7` / `exp4_aug` / `exp5` / `exp6` / `exp7` / `exp8` / `exp9` / `exp10` / `exp11` / `exp12` / `exp13`
 结果输出: `outputs/eval_results.json`
 
 ## 2、踩坑速查 ⚠️
@@ -38,6 +38,20 @@ python scripts/eval_act.py --model v0.1 --diagnose          # 单帧逐维诊断
 4. **训练-推理 chunk/act 必须一致** → 训 chunk=100 但推理 act=20 是 v0.1 实机精度差的根因
 5. **chunk < 16 → VAE 模式坍塌** → 模型输出"安全平均值"，MAE 反而最低但完全不动
 6. **ACT 不支持** **`n_obs_steps > 1`**（代码硬编码限制）
+7. **数据集默认本地优先** → Hub 更新后训练仍可能读旧缓存；需要加 `--dataset.force_cache_sync=true` 强制同步
+
+### 数据集同步
+
+LeRobot 默认使用 `$HF_LEROBOT_HOME/{repo_id}` 本地缓存；只要本地 `meta/`、`data/` 可读，就不会主动检查 HuggingFace Hub 是否有新提交。
+
+如果 Hub 上的 `lepao/so101_test` 更新了，新训练建议加：
+
+```bash
+--dataset.revision=main \
+--dataset.force_cache_sync=true
+```
+
+其中 `--dataset.revision=main` 指向 Hub 最新 main 分支，`--dataset.force_cache_sync=true` 会跳过本地优先加载并重新调用 `snapshot_download()` 同步文件。
 
 ## 3、历史实验
 
@@ -539,3 +553,117 @@ lerobot-train \
 ```
 
 > 远程 SSH 推理时不要降低 `actions_per_chunk`，否则动作缓存变短，网络抖动更容易导致机械臂停顿。
+
+### exp10 / exp11 离线评估结果
+
+评估命令：
+
+```bash
+python scripts/eval_act.py --model exp10 exp11 --eval_steps 100 --mode rollout --output outputs/eval_exp10_exp11_rollout100.json
+```
+
+| 实验        | backbone | 训练策略           | eval | MSE      | MAE      | Δratio | 趋势                         |
+| --------- | -------- | -------------- | ---- | -------- | -------- | ------ | -------------------------- |
+| exp9 对照   | resnet50 | 100k constant  | 100  | 36.12    | 1.96     | 116.4% | 实机观察优于其他 ACT checkpoint |
+| **exp10** | resnet101 | 100k constant | 100  | 85.64    | 2.97     | 131.8% | 明显退化，后半段 overshoot 严重     |
+| **exp11** | resnet50 | 300k cosine    | 100  | **6.10** | **0.90** | 105.4% | 显著最优，delta 接近 GT，长训有效     |
+
+**per-step 关键发现**:
+
+- **exp10**: step 20 后误差快速累积，step 44 MSE 已到 128.8，step 99 达 388.4；整体 delta ratio 131.8%，属于大容量 backbone 在小数据集上不稳定 / overshoot。
+- **exp11**: step 0–31 MSE 基本维持在 1.6–4.1，step 44–89 主要在 10–14 区间，末端 step 99 为 13.35；delta ratio 105.4%，没有明显 VAE 坍塌或动作放大。
+
+**结论**:
+
+1. **resnet101 不值得继续**：离线误差和 delta ratio 均显著差于 resnet50，符合 181 ep 小数据下大 backbone 过拟合/不稳定风险。
+2. **resnet50 长训方向成立**：exp11 相比 exp9，MSE 从 36.12 降到 6.10，MAE 从 1.96 降到 0.90，delta ratio 从 116.4% 收敛到 105.4%。
+3. **下一步优先实机评测 exp11**：使用同一套 25 次协议；若实机也提升，后续只在 resnet50 + 长训策略上微调，不再扩大 backbone。
+
+### 下一轮实验：长训变量拆解
+
+**目标**: 验证 exp11 的收益来自长训/学习率调度本身，还是与 backbone/数据增强存在交互。
+
+| 实验        | backbone | steps | scheduler | aug | 对照对象 | 目的                         |
+| --------- | -------- | ----- | --------- | --- | ---- | -------------------------- |
+| **exp12** | resnet101 | 300k | cosine    | ✗   | exp10 | 判断 resnet101 是否只是 100k 未训够 |
+| **exp13** | resnet50  | 300k | cosine    | 默认全部 | exp11 | 判断长训后默认图像增强是否从退化变为正收益   |
+
+**设计原则**:
+
+1. exp12 只在 exp10 基础上改变训练步数和 scheduler，不同时加 aug。
+2. exp13 只在 exp11 基础上加图像增强，不改变 backbone / steps / scheduler。
+3. 评估仍使用 rollout 100-step，并优先和 exp11 比较；实机只测离线不退化的模型。
+
+```bash
+# exp12: resnet101 长训 + cosine 学习率调度
+export HF_USER=lepao
+export JOB_NAME=act_so101_v04_exp12_resnet101_300k_cosine
+lerobot-train \
+    --dataset.repo_id=${HF_USER}/so101_test \
+    --dataset.revision=main \
+    --dataset.force_cache_sync=true \
+    --policy.type=act \
+    --output_dir=outputs/train/${JOB_NAME} \
+    --job_name=${JOB_NAME} \
+    --policy.device=cuda \
+    --policy.push_to_hub=true \
+    --policy.repo_id=${HF_USER}/${JOB_NAME} \
+    --save_freq=50000 \
+    --steps=300000 \
+    --batch_size=8 \
+    --policy.chunk_size=100 \
+    --policy.n_action_steps=100 \
+    --policy.kl_weight=10.0 \
+    --policy.vision_backbone=resnet101 \
+    --policy.pretrained_backbone_weights=ResNet101_Weights.IMAGENET1K_V1 \
+    --wandb.enable=true \
+    --scheduler.type=cosine_decay_with_warmup \
+    --scheduler.num_warmup_steps=5000 \
+    --scheduler.num_decay_steps=300000 \
+    --scheduler.peak_lr=1e-5 \
+    --scheduler.decay_lr=1e-6
+```
+
+```bash
+# exp13: resnet50 长训 + cosine + 默认全部图像增强
+export HF_USER=lepao
+export JOB_NAME=act_so101_v04_exp13_resnet50_300k_cosine_aug
+lerobot-train \
+    --dataset.repo_id=${HF_USER}/so101_test \
+    --policy.type=act \
+    --output_dir=outputs/train/${JOB_NAME} \
+    --job_name=${JOB_NAME} \
+    --policy.device=cuda \
+    --policy.push_to_hub=true \
+    --policy.repo_id=${HF_USER}/${JOB_NAME} \
+    --save_freq=50000 \
+    --steps=300000 \
+    --batch_size=8 \
+    --policy.chunk_size=100 \
+    --policy.n_action_steps=100 \
+    --policy.kl_weight=10.0 \
+    --policy.vision_backbone=resnet50 \
+    --policy.pretrained_backbone_weights=ResNet50_Weights.IMAGENET1K_V1 \
+    --dataset.image_transforms.enable=true \
+    --wandb.enable=true \
+    --scheduler.type=cosine_decay_with_warmup \
+    --scheduler.num_warmup_steps=5000 \
+    --scheduler.num_decay_steps=300000 \
+    --scheduler.peak_lr=1e-5 \
+    --scheduler.decay_lr=1e-6
+```
+
+评估命令：
+
+```bash
+python scripts/eval_act.py --model exp12 exp13 --eval_steps 100 --mode rollout --output outputs/eval_exp12_exp13_rollout100.json
+```
+
+**预期判读**:
+
+| 结果 | 结论 | 下一步 |
+| ---- | ---- | ---- |
+| exp12 仍明显差于 exp11 | resnet101 容量过大，不再扩大 backbone | 停止 resnet101/152 |
+| exp12 接近或超过 exp11 | resnet101 需要长训才稳定 | 实机测 exp12 |
+| exp13 优于 exp11 | 长训后 aug 有正收益 | 实机测 exp13，并考虑更温和 aug sweep |
+| exp13 差于 exp11 | 数据增强仍破坏小数据分布 | 保持 exp11 作为 ACT 最强候选 |
