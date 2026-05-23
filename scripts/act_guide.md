@@ -748,6 +748,11 @@ lerobot-train \
     --policy.vision_backbone=resnet50 \
     --policy.pretrained_backbone_weights=ResNet50_Weights.IMAGENET1K_V1 \
     --wandb.enable=true \
+    --use_policy_training_preset=false \
+    --optimizer.type=adamw \
+    --optimizer.lr=1e-5 \
+    --optimizer.weight_decay=0.0001 \
+    --optimizer.grad_clip_norm=10 \
     --scheduler.type=cosine_decay_with_warmup \
     --scheduler.num_warmup_steps=10000 \
     --scheduler.num_decay_steps=500000 \
@@ -779,12 +784,18 @@ lerobot-train \
     --policy.kl_weight=10.0 \
     --policy.vision_backbone=resnet50 \
     --policy.pretrained_backbone_weights=ResNet50_Weights.IMAGENET1K_V1 \
-    --wandb.enable=true \
+    --use_policy_training_preset=false \
+    --optimizer.type=adamw \
+    --optimizer.lr=5e-6 \
+    --optimizer.weight_decay=0.0001 \
+    --optimizer.grad_clip_norm=10 \
+    --policy.optimizer_lr_backbone=5e-6 \
     --scheduler.type=cosine_decay_with_warmup \
     --scheduler.num_warmup_steps=10000 \
     --scheduler.num_decay_steps=500000 \
     --scheduler.peak_lr=5e-6 \
-    --scheduler.decay_lr=5e-7
+    --scheduler.decay_lr=5e-7 \
+    --wandb.enable=true
 ```
 
 #### exp16: resnet50 500k cosine 温和增强对照
@@ -816,12 +827,18 @@ lerobot-train \
     --dataset.image_transforms.enable=true \
     --dataset.image_transforms.max_num_transforms=2 \
     --dataset.image_transforms.tfs='{"brightness":{"weight":1.0,"type":"ColorJitter","kwargs":{"brightness":[0.9,1.1]}},"contrast":{"weight":1.0,"type":"ColorJitter","kwargs":{"contrast":[0.9,1.1]}},"saturation":{"weight":0.5,"type":"ColorJitter","kwargs":{"saturation":[0.8,1.2]}}}' \
-    --wandb.enable=true \
+    --use_policy_training_preset=false \
+    --optimizer.type=adamw \
+    --optimizer.lr=1e-5 \
+    --optimizer.weight_decay=0.0001 \
+    --optimizer.grad_clip_norm=10 \
+    --policy.optimizer_lr_backbone=1e-5 \
     --scheduler.type=cosine_decay_with_warmup \
     --scheduler.num_warmup_steps=10000 \
     --scheduler.num_decay_steps=500000 \
     --scheduler.peak_lr=1e-5 \
-    --scheduler.decay_lr=1e-6
+    --scheduler.decay_lr=1e-6 \
+    --wandb.enable=true
 ```
 
 评估建议：每个实验在 `100k/200k/300k/400k/500k` checkpoint 上统一跑 rollout 100-step 离线评估，先看 val/test split，再决定是否进入实机评测。
