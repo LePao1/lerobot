@@ -31,7 +31,7 @@ import torch
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(message)s")
 logger = logging.getLogger(__name__)
 
-DATASET_REPO = "lepao/so101_test"
+DEFAULT_DATASET_REPO = "lepao/so101_test"
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
 SHORTCUTS = {
@@ -61,6 +61,16 @@ DEFAULT_EPISODE_SPLITS = {
 
 def resolve_path(name):
     return SHORTCUTS.get(name, name)
+
+
+def get_model_result_key(model_path):
+    path = Path(model_path)
+    parts = path.parts
+    if "checkpoints" in parts:
+        checkpoint_idx = parts.index("checkpoints")
+        if checkpoint_idx >= 1 and checkpoint_idx + 1 < len(parts):
+            return f"{parts[checkpoint_idx - 1]}@{parts[checkpoint_idx + 1]}"
+    return path.name
 
 
 def summarize_metric(values):
@@ -215,25 +225,26 @@ def load_policy(model_path):
     return policy, preprocessor, postprocessor, policy_cfg
 
 
-def load_dataset(chunk_size, episodes=None):
+def load_dataset(dataset_repo, chunk_size, episodes=None):
     from lerobot.datasets.lerobot_dataset import LeRobotDataset, LeRobotDatasetMetadata
 
-    ds_meta = LeRobotDatasetMetadata(DATASET_REPO)
+    ds_meta = LeRobotDatasetMetadata(dataset_repo)
     fps = ds_meta.fps
     delta_timestamps = {"action": [i / fps for i in range(chunk_size)]}
-    return LeRobotDataset(DATASET_REPO, episodes=episodes, delta_timestamps=delta_timestamps)
+    return LeRobotDataset(dataset_repo, episodes=episodes, delta_timestamps=delta_timestamps)
 
 
 def evaluate(model_path, eval_steps=None, num_samples=500, split_name=None, split_spec=None,
-             sampling_mode="balanced_episodes", mode="standard", rollout_horizon=None):
-    model_name = Path(model_path).parts[2] if len(Path(model_path).parts) > 2 else Path(model_path).name
+             sampling_mode="balanced_episodes", mode="standard", rollout_horizon=None,
+             dataset_repo=DEFAULT_DATASET_REPO):
+    model_name = get_model_result_key(model_path)
 
     policy, preprocessor, postprocessor, policy_cfg = load_policy(model_path)
     chunk_size = policy_cfg.chunk_size
     n_eval = eval_steps or chunk_size
-    base_dataset = load_dataset(chunk_size)
+    base_dataset = load_dataset(dataset_repo, chunk_size)
     selected_episodes, split_map = resolve_episode_subset(base_dataset, split_name=split_name, split_spec=split_spec)
-    dataset = load_dataset(chunk_size, episodes=selected_episodes) if selected_episodes is not None else base_dataset
+    dataset = load_dataset(dataset_repo, chunk_size, episodes=selected_episodes) if selected_episodes is not None else base_dataset
     active_split = split_name or "all"
     replan_horizon = rollout_horizon or n_eval
 
@@ -257,7 +268,7 @@ def evaluate(model_path, eval_steps=None, num_samples=500, split_name=None, spli
         sample_indices = build_sample_indices(dataset, num_samples, sampling_mode=sampling_mode)
 
     logger.info(
-        f"Model: {model_name} | split={active_split} | chunk={chunk_size} | eval_steps={n_eval} | "
+        f"Model: {model_name} | dataset={dataset_repo} | split={active_split} | chunk={chunk_size} | eval_steps={n_eval} | "
         f"samples={len(sample_indices)} | sampling={sampling_mode} | mode={mode}"
     )
     if split_map is not None:
@@ -368,6 +379,7 @@ def evaluate(model_path, eval_steps=None, num_samples=500, split_name=None, spli
     results = {
         "model": model_name,
         "model_path": model_path,
+        "dataset_repo": dataset_repo,
         "chunk_size": chunk_size,
         "eval_steps": n_eval,
         "split": active_split,
@@ -401,14 +413,14 @@ def evaluate(model_path, eval_steps=None, num_samples=500, split_name=None, spli
     return results
 
 
-def diagnose(model_path):
+def diagnose(model_path, dataset_repo=DEFAULT_DATASET_REPO):
     logger.info(f"\n{'='*70}")
     logger.info(f"DIAGNOSE: {model_path}")
     logger.info(f"{'='*70}")
 
     policy, preprocessor, postprocessor, policy_cfg = load_policy(model_path)
     chunk_size = policy_cfg.chunk_size
-    dataset = load_dataset(chunk_size)
+    dataset = load_dataset(dataset_repo, chunk_size)
 
     ep0 = dataset.meta.episodes[0]
     mid_idx = ep0["dataset_from_index"] + 50
@@ -479,6 +491,12 @@ def main():
         help="Steps executed before replanning in rollout mode; defaults to eval_steps",
     )
     parser.add_argument("--output", type=str, default=None, help="Output JSON path")
+    parser.add_argument(
+        "--dataset_repo",
+        type=str,
+        default=DEFAULT_DATASET_REPO,
+        help="Dataset repo used for offline evaluation",
+    )
     args = parser.parse_args()
 
     requested_models = [resolve_path(m) for m in args.model]
@@ -495,7 +513,7 @@ def main():
 
     if args.diagnose:
         for p in models:
-            diagnose(p)
+            diagnose(p, dataset_repo=args.dataset_repo)
         return
 
     all_results = {}
@@ -509,6 +527,7 @@ def main():
             sampling_mode=args.sampling,
             mode=args.mode,
             rollout_horizon=args.rollout_horizon,
+            dataset_repo=args.dataset_repo,
         )
         all_results[r["model"]] = r
 

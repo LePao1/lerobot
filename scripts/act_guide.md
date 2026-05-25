@@ -719,9 +719,9 @@ scheduler: cosine_decay_with_warmup
 | ---- | ---- | ------ | --- | ------: | -------: | -------- |
 | exp14 | 600 ep 新主基线 | 从头训练 | 否 | 1e-5 | 1e-6 | 若显著优于 exp11，说明扩数据 + 长训有效 |
 | exp15 | 低学习率长训对照 | 从头训练 | 否 | 5e-6 | 5e-7 | 若优于 exp14，说明 600 ep + 500k 需要更保守 LR |
-| exp16 | 温和图像增强对照 | 从头训练 | 温和 color jitter | 1e-5 | 1e-6 | 若优于 exp14，说明扩数据后轻量增强开始有正收益 |
+| exp16 | 温和图像增强对照 | 从头训练 | 温和 color jitter | 1e-5 | 1e-6 | **未训练，编号转入 v06 fixed 数据集实验** |
 
-训练顺序建议：`exp14 -> exp15 -> exp16`。如果算力只能跑两个，优先 `exp14 + exp15`。
+训练顺序建议：`exp14 -> exp15`。原计划 `exp16` 尚未训练，编号转入 `lepao/so101_test_fixed` 上重新定义。
 
 #### exp14: resnet50 500k cosine 主基线
 
@@ -798,9 +798,9 @@ lerobot-train \
     --wandb.enable=true
 ```
 
-#### exp16: resnet50 500k cosine 温和增强对照
+#### exp16: resnet50 500k cosine 温和增强对照（已迁移）
 
-仅对比 `exp14` 增加温和 color jitter，不使用 affine/crop/rotation/perspective，避免破坏空间几何关系。
+原计划在 `lepao/so101_test` 上对比 `exp14` 增加温和 color jitter；该实验尚未训练，编号保留并转入 v06 `lepao/so101_test_fixed` 实验中，不再使用下面旧数据集命令。
 
 ```bash
 export HF_USER=lepao
@@ -838,7 +838,310 @@ lerobot-train \
     --scheduler.num_decay_steps=500000 \
     --scheduler.peak_lr=1e-5 \
     --scheduler.decay_lr=1e-6 \
-    --wandb.enable=true
+    --wandb.enable=true \
+    --wandb.disable_artifact=true
 ```
 
 评估建议：每个实验在 `100k/200k/300k/400k/500k` checkpoint 上统一跑 rollout 100-step 离线评估，先看 val/test split，再决定是否进入实机评测。
+
+### exp14 / exp15 离线评估结果
+
+评估命令：
+
+```bash
+# 全量 600 ep，按 checkpoint 单独保存，避免同名模型结果覆盖
+python scripts/eval_act.py \
+    --model outputs/train/act_so101_v05_exp14_resnet50_500k_cosine_600ep/checkpoints/500000/pretrained_model \
+    --eval_steps 100 \
+    --mode rollout \
+    --output outputs/eval_exp14_500000_rollout100.json
+
+python scripts/eval_act.py \
+    --model outputs/train/act_so101_v05_exp15_resnet50_500k_cosine_lr5e6_600ep/checkpoints/500000/pretrained_model \
+    --eval_steps 100 \
+    --mode rollout \
+    --output outputs/eval_exp15_500000_rollout100.json
+
+# test split 复核
+python scripts/eval_act.py \
+    --model outputs/train/act_so101_v05_exp14_resnet50_500k_cosine_600ep/checkpoints/500000/pretrained_model \
+            outputs/train/act_so101_v05_exp15_resnet50_500k_cosine_lr5e6_600ep/checkpoints/500000/pretrained_model \
+    --eval_steps 100 \
+    --mode rollout \
+    --split test \
+    --output outputs/eval_exp14_exp15_500k_test_rollout100.json
+```
+
+> 注意：`eval_act.py` 当前用模型目录名作为 JSON key；同一实验的多个 checkpoint 一次性传入时会互相覆盖。比较多 checkpoint 时应按 checkpoint 单独输出，或先修复 key 命名。
+
+全量 600 ep rollout 100-step：
+
+| 实验 | checkpoint | MSE | MAE | Δratio | MSE p50 | MSE p90 | 结论 |
+| ---- | ----------: | --: | --: | -----: | ------: | ------: | ---- |
+| exp14 | 100k | 172.34 | 6.02 | 139.4% | 77.18 | 455.77 | 早期未收敛 |
+| exp14 | 200k | 174.05 | 5.69 | 129.2% | 65.96 | 469.45 | 仍未收敛 |
+| exp14 | 300k | 151.56 | 4.79 | 125.3% | 30.62 | 410.96 | 开始改善但误差仍高 |
+| exp14 | 400k | 22.28 | 1.98 | 111.8% | 6.50 | 43.73 | 明显收敛 |
+| **exp14** | **500k** | **10.90** | **1.46** | **109.4%** | **4.03** | **17.50** | **全量最优** |
+| exp15 | 100k | 159.64 | 6.09 | 153.6% | 76.71 | 385.42 | 早期未收敛 |
+| exp15 | 200k | 87.65 | 4.40 | 128.7% | 34.80 | 243.60 | 比 exp14 同步数好 |
+| exp15 | 300k | 34.99 | 2.70 | 121.7% | 13.44 | 73.95 | 稳定改善 |
+| exp15 | 400k | 15.47 | 2.03 | 118.0% | 8.71 | 29.63 | 接近 exp14 |
+| exp15 | 500k | 12.15 | 1.77 | 117.5% | 6.73 | 19.08 | 次优，动作幅度偏大 |
+
+500k test split 复核：
+
+| 实验 | checkpoint | MSE | MAE | Δratio | MSE p50 | MSE p90 | 结论 |
+| ---- | ----------: | --: | --: | -----: | ------: | ------: | ---- |
+| **exp14** | **500k** | **6.29** | **1.31** | **108.8%** | **3.33** | **9.94** | **test split 仍最优** |
+| exp15 | 500k | 10.34 | 1.83 | 116.3% | 6.89 | 19.22 | 明显差于 exp14 |
+
+**结果判读**：
+
+1. **exp14@500k 是当前 ACT 最强离线候选**：全量 MSE=10.90、MAE=1.46、Δratio=109.4%；test split MSE=6.29、MAE=1.31、Δratio=108.8%。
+2. **exp15 低学习率未超过 exp14**：虽然 200k/300k 阶段比 exp14 收敛更平滑，但 500k 终点在 MSE、MAE、Δratio 上均更差，表现为偏保守/欠拟合，同时动作幅度仍偏大。
+3. **600 ep + resnet50 + 500k 路线成立**：同当前 600 ep 数据口径重评 exp11，MSE=477.77、MAE=12.58、Δratio=127.0%，说明旧 181 ep 模型已经明显不适配新数据分布。
+4. **优先实机评测 exp14@500k**：路径为 `outputs/train/act_so101_v05_exp14_resnet50_500k_cosine_600ep/checkpoints/500000/pretrained_model`。后续 fixed 数据集实验以 v05 配置为基础，编号从 v06 exp16 继续。
+
+### v06 实验设计：fixed 数据集主基线
+
+**目标**: 数据集切换到 `lepao/so101_test_fixed` 后，使用与 `exp15` 一致的低学习率，并将训练延长到 700k step，建立 fixed 数据集新 baseline。原 v05 的 `exp16` 尚未训练，编号转入本轮作为 fixed 数据集主基线。
+
+**关键变化**:
+
+1. 数据集从 `lepao/so101_test` 切换为 `lepao/so101_test_fixed`。
+2. 训练配置沿用 ACT 长训路线：`resnet50 + chunk100 + 700k + cosine`，学习率与 `exp15` 保持一致。
+3. 所有新实验启用 W&B 日志但禁用 artifact：`--wandb.disable_artifact=true`，避免模型权重上传到 W&B。
+4. 仍保留 `--policy.push_to_hub=true`，模型权重上传到 HuggingFace Hub，而不是 W&B artifact。
+
+共同固定配置：
+
+```text
+dataset: lepao/so101_test_fixed
+policy: ACT
+backbone: resnet50
+chunk_size: 100
+n_action_steps: 100
+kl_weight: 10.0
+steps: 700000
+batch_size: 8
+save_freq: 50000
+scheduler: cosine_decay_with_warmup
+wandb.disable_artifact: true
+```
+
+| 实验 | 目的 | 初始化 | aug | peak_lr | decay_lr | 结论判读 |
+| ---- | ---- | ------ | --- | ------: | -------: | -------- |
+| **exp16** | fixed 数据集主基线 | 从头训练 | 否 | 5e-6 | 5e-7 | 和 exp15 对比，判断 fixed 数据集 + 700k 是否提升 ACT 上限 |
+| exp17 | fixed 数据集温和增强对照 | 从头训练 | 温和 color jitter | 5e-6 | 5e-7 | 若优于 exp16，说明 fixed 数据集下轻量增强有正收益 |
+
+训练顺序建议：先跑 `exp16`。只有当 `exp16` 离线和/或实机表现稳定后，再决定是否跑 `exp17`。
+
+评估建议：每个实验在 `100k/200k/300k/400k/500k/600k/700k` checkpoint 上统一跑 rollout 100-step，重点比较 500k 后是否继续下降，避免 700k 只是过拟合或收益很小。
+
+#### exp16: fixed 数据集 resnet50 700k cosine 主基线
+
+```bash
+export CUDA_VISIBLE_DEVICES=0
+export HF_USER=lepao
+export JOB_NAME=act_so101_v06_exp16_resnet50_700k_cosine_fixed
+lerobot-train \
+    --dataset.repo_id=${HF_USER}/so101_test_fixed \
+    --dataset.revision=main \
+    --dataset.force_cache_sync=true \
+    --policy.type=act \
+    --output_dir=outputs/train/${JOB_NAME} \
+    --job_name=${JOB_NAME} \
+    --policy.device=cuda \
+    --policy.push_to_hub=true \
+    --policy.repo_id=${HF_USER}/${JOB_NAME} \
+    --save_freq=50000 \
+    --steps=700000 \
+    --batch_size=8 \
+    --num_workers=8 \
+    --policy.chunk_size=100 \
+    --policy.n_action_steps=100 \
+    --policy.kl_weight=10.0 \
+    --policy.vision_backbone=resnet50 \
+    --policy.pretrained_backbone_weights=ResNet50_Weights.IMAGENET1K_V1 \
+    --wandb.enable=true \
+    --wandb.disable_artifact=true \
+    --use_policy_training_preset=false \
+    --optimizer.type=adamw \
+    --optimizer.lr=5e-6 \
+    --optimizer.weight_decay=0.0001 \
+    --optimizer.grad_clip_norm=10 \
+    --policy.optimizer_lr_backbone=5e-6 \
+    --scheduler.type=cosine_decay_with_warmup \
+    --scheduler.num_warmup_steps=10000 \
+    --scheduler.num_decay_steps=700000 \
+    --scheduler.peak_lr=5e-6 \
+    --scheduler.decay_lr=5e-7
+```
+
+#### exp17: fixed 数据集 resnet50 700k cosine 温和增强对照
+
+仅对比 `exp16` 增加温和 color jitter，不使用 affine/crop/rotation/perspective，避免破坏空间几何关系。
+
+```bash
+export CUDA_VISIBLE_DEVICES=1
+export HF_USER=lepao
+export JOB_NAME=act_so101_v06_exp17_resnet50_700k_cosine_mildaug_fixed
+lerobot-train \
+    --dataset.repo_id=${HF_USER}/so101_test_fixed \
+    --dataset.revision=main \
+    --policy.type=act \
+    --output_dir=outputs/train/${JOB_NAME} \
+    --job_name=${JOB_NAME} \
+    --policy.device=cuda \
+    --policy.push_to_hub=true \
+    --policy.repo_id=${HF_USER}/${JOB_NAME} \
+    --save_freq=50000 \
+    --steps=700000 \
+    --batch_size=8 \
+    --num_workers=8 \
+    --policy.chunk_size=100 \
+    --policy.n_action_steps=100 \
+    --policy.kl_weight=10.0 \
+    --policy.vision_backbone=resnet50 \
+    --policy.pretrained_backbone_weights=ResNet50_Weights.IMAGENET1K_V1 \
+    --dataset.image_transforms.enable=true \
+    --dataset.image_transforms.max_num_transforms=2 \
+    --dataset.image_transforms.tfs='{"brightness":{"weight":1.0,"type":"ColorJitter","kwargs":{"brightness":[0.9,1.1]}},"contrast":{"weight":1.0,"type":"ColorJitter","kwargs":{"contrast":[0.9,1.1]}},"saturation":{"weight":0.5,"type":"ColorJitter","kwargs":{"saturation":[0.8,1.2]}}}' \
+    --wandb.enable=true \
+    --wandb.disable_artifact=true \
+    --use_policy_training_preset=false \
+    --optimizer.type=adamw \
+    --optimizer.lr=5e-6 \
+    --optimizer.weight_decay=0.0001 \
+    --optimizer.grad_clip_norm=10 \
+    --policy.optimizer_lr_backbone=5e-6 \
+    --scheduler.type=cosine_decay_with_warmup \
+    --scheduler.num_warmup_steps=10000 \
+    --scheduler.num_decay_steps=700000 \
+    --scheduler.peak_lr=5e-6 \
+    --scheduler.decay_lr=5e-7
+```
+
+评估命令：
+
+```bash
+python scripts/eval_act.py \
+    --dataset_repo lepao/so101_test_fixed \
+    --model outputs/train/act_so101_v06_exp16_resnet50_700k_cosine_fixed/checkpoints/700000/pretrained_model \
+    --eval_steps 100 \
+    --mode rollout \
+    --output outputs/eval_exp16_fixed_700000_rollout100.json
+
+python scripts/eval_act.py \
+    --dataset_repo lepao/so101_test_fixed \
+    --model outputs/train/act_so101_v06_exp16_resnet50_700k_cosine_fixed/checkpoints/700000/pretrained_model \
+    --eval_steps 100 \
+    --mode rollout \
+    --split test \
+    --output outputs/eval_exp16_fixed_700000_test_rollout100.json
+```
+
+**预期判读**：
+
+| 结果 | 结论 | 下一步 |
+| ---- | ---- | ------ |
+| exp16 明显优于 exp15 | fixed 数据集修复有效 | 优先实机评测 exp16 |
+| exp16 接近 exp15 | fixed 数据集没有显著改变离线指标 | 仍实机测 exp16，确认数据修复是否改善真实成功率 |
+| exp16 差于 exp15 | fixed 数据集分布或标注变化影响训练 | 检查数据集差异、episode 分布和动作尺度 |
+| exp16 稳定后仍需提升泛化 | 进入 exp17 温和增强对照 | 只加 color jitter，不加几何增强 |
+
+### exp16 / exp17 离线评估结果
+
+评估命令：
+
+```bash
+python scripts/eval_act.py \
+    --dataset_repo lepao/so101_test_fixed \
+    --model \
+        outputs/train/act_so101_v06_exp16_resnet50_700k_cosine_fixed/checkpoints/050000/pretrained_model \
+        outputs/train/act_so101_v06_exp16_resnet50_700k_cosine_fixed/checkpoints/100000/pretrained_model \
+        outputs/train/act_so101_v06_exp16_resnet50_700k_cosine_fixed/checkpoints/150000/pretrained_model \
+        outputs/train/act_so101_v06_exp16_resnet50_700k_cosine_fixed/checkpoints/200000/pretrained_model \
+        outputs/train/act_so101_v06_exp16_resnet50_700k_cosine_fixed/checkpoints/250000/pretrained_model \
+        outputs/train/act_so101_v06_exp16_resnet50_700k_cosine_fixed/checkpoints/300000/pretrained_model \
+        outputs/train/act_so101_v06_exp16_resnet50_700k_cosine_fixed/checkpoints/350000/pretrained_model \
+        outputs/train/act_so101_v06_exp16_resnet50_700k_cosine_fixed/checkpoints/400000/pretrained_model \
+        outputs/train/act_so101_v06_exp16_resnet50_700k_cosine_fixed/checkpoints/450000/pretrained_model \
+        outputs/train/act_so101_v06_exp16_resnet50_700k_cosine_fixed/checkpoints/500000/pretrained_model \
+        outputs/train/act_so101_v06_exp16_resnet50_700k_cosine_fixed/checkpoints/550000/pretrained_model \
+        outputs/train/act_so101_v06_exp16_resnet50_700k_cosine_fixed/checkpoints/600000/pretrained_model \
+        outputs/train/act_so101_v06_exp16_resnet50_700k_cosine_fixed/checkpoints/650000/pretrained_model \
+        outputs/train/act_so101_v06_exp16_resnet50_700k_cosine_fixed/checkpoints/700000/pretrained_model \
+    --eval_steps 100 \
+    --mode rollout \
+    --output outputs/eval_exp16_fixed_checkpoints_rollout100.json
+
+python scripts/eval_act.py \
+    --dataset_repo lepao/so101_test_fixed \
+    --model \
+        outputs/train/act_so101_v06_exp17_resnet50_700k_cosine_mildaug_fixed/checkpoints/050000/pretrained_model \
+        outputs/train/act_so101_v06_exp17_resnet50_700k_cosine_mildaug_fixed/checkpoints/100000/pretrained_model \
+        outputs/train/act_so101_v06_exp17_resnet50_700k_cosine_mildaug_fixed/checkpoints/150000/pretrained_model \
+        outputs/train/act_so101_v06_exp17_resnet50_700k_cosine_mildaug_fixed/checkpoints/200000/pretrained_model \
+        outputs/train/act_so101_v06_exp17_resnet50_700k_cosine_mildaug_fixed/checkpoints/250000/pretrained_model \
+        outputs/train/act_so101_v06_exp17_resnet50_700k_cosine_mildaug_fixed/checkpoints/300000/pretrained_model \
+        outputs/train/act_so101_v06_exp17_resnet50_700k_cosine_mildaug_fixed/checkpoints/350000/pretrained_model \
+        outputs/train/act_so101_v06_exp17_resnet50_700k_cosine_mildaug_fixed/checkpoints/400000/pretrained_model \
+        outputs/train/act_so101_v06_exp17_resnet50_700k_cosine_mildaug_fixed/checkpoints/450000/pretrained_model \
+        outputs/train/act_so101_v06_exp17_resnet50_700k_cosine_mildaug_fixed/checkpoints/500000/pretrained_model \
+        outputs/train/act_so101_v06_exp17_resnet50_700k_cosine_mildaug_fixed/checkpoints/550000/pretrained_model \
+        outputs/train/act_so101_v06_exp17_resnet50_700k_cosine_mildaug_fixed/checkpoints/600000/pretrained_model \
+        outputs/train/act_so101_v06_exp17_resnet50_700k_cosine_mildaug_fixed/checkpoints/650000/pretrained_model \
+        outputs/train/act_so101_v06_exp17_resnet50_700k_cosine_mildaug_fixed/checkpoints/700000/pretrained_model \
+    --eval_steps 100 \
+    --mode rollout \
+    --output outputs/eval_exp17_fixed_checkpoints_rollout100.json
+```
+
+全量 fixed 数据集 rollout 100-step：
+
+| checkpoint | exp16 MSE | exp16 MAE | exp16 Δratio | exp17 MSE | exp17 MAE | exp17 Δratio |
+| ---------: | --------: | --------: | ------------: | --------: | --------: | ------------: |
+| 050000 | 247.44 | 8.22 | 169.6% | 270.11 | 8.57 | 173.2% |
+| 100000 | 145.07 | 5.88 | 151.7% | 166.35 | 6.30 | 153.6% |
+| 150000 | 70.62 | 3.98 | 130.6% | 95.03 | 4.42 | 135.9% |
+| 200000 | 97.63 | 4.50 | 127.3% | 78.64 | 4.08 | 128.7% |
+| 250000 | 42.29 | 3.05 | 118.7% | 50.00 | 3.27 | 122.3% |
+| 300000 | 60.86 | 3.40 | 121.0% | 77.48 | 3.75 | 124.2% |
+| 350000 | 22.63 | 2.29 | 115.1% | 28.39 | 2.47 | 115.6% |
+| 400000 | 20.30 | 2.21 | 115.3% | 21.62 | 2.19 | 114.3% |
+| 450000 | 14.20 | 1.88 | 114.7% | 15.93 | 1.98 | 115.1% |
+| 500000 | 10.83 | 1.66 | 113.6% | 15.50 | 1.90 | 114.7% |
+| 550000 | 8.98 | 1.57 | 113.7% | 11.22 | 1.69 | 113.4% |
+| 600000 | 8.28 | 1.49 | 113.4% | 9.90 | 1.58 | 113.6% |
+| 650000 | 7.80 | 1.48 | 113.3% | 8.68 | 1.51 | 112.9% |
+| **700000** | **7.01** | **1.41** | **113.4%** | **8.43** | **1.50** | **113.1%** |
+
+700k test split 复核：
+
+评估命令：
+
+```bash
+python scripts/eval_act.py \
+    --dataset_repo lepao/so101_test_fixed \
+    --model \
+        outputs/train/act_so101_v06_exp16_resnet50_700k_cosine_fixed/checkpoints/700000/pretrained_model \
+        outputs/train/act_so101_v06_exp17_resnet50_700k_cosine_mildaug_fixed/checkpoints/700000/pretrained_model \
+    --eval_steps 100 \
+    --mode rollout \
+    --split test \
+    --output outputs/eval_exp16_exp17_fixed_700000_test_rollout100.json
+```
+
+| 实验 | checkpoint | MSE | MAE | Δratio | MSE p50 | MSE p90 | 结论 |
+| ---- | ----------: | --: | --: | -----: | ------: | ------: | ---- |
+| **exp16** | **700k** | **6.41** | **1.52** | 114.4% | **4.50** | **11.81** | test split 最优 |
+| exp17 | 700k | 7.43 | 1.55 | **113.9%** | 4.69 | 12.63 | 温和增强未提升 |
+
+**结果判读**：
+
+1. 两个模型都在 700k 达到各自最优，500k 后仍有持续收益，700k 不是明显过拟合。
+2. **exp16@700k 是 fixed 数据集当前最优 ACT 候选**：全量 MSE=7.01、MAE=1.41、Δratio=113.4%；test split MSE=6.41、MAE=1.52、Δratio=114.4%。
+3. exp17 的温和 color jitter 未超过 exp16：700k 全量 MSE 从 7.01 升至 8.43，test MSE 从 6.41 升至 7.43。
+4. 继续保持不加图像增强的 `exp16@700k` 作为实机优先模型；`exp17@700k` 暂不进入优先实机队列。
