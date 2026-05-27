@@ -1145,3 +1145,9 @@ python scripts/eval_act.py \
 2. **exp16@700k 是 fixed 数据集当前最优 ACT 候选**：全量 MSE=7.01、MAE=1.41、Δratio=113.4%；test split MSE=6.41、MAE=1.52、Δratio=114.4%。
 3. exp17 的温和 color jitter 未超过 exp16：700k 全量 MSE 从 7.01 升至 8.43，test MSE 从 6.41 升至 7.43。
 4. 继续保持不加图像增强的 `exp16@700k` 作为实机优先模型；`exp17@700k` 暂不进入优先实机队列。
+
+**实机复测补充（2026-05-27）**：
+
+- 实机测试发现 `exp16@700k` 表现不如离线指标预期，疑似过拟合，已将 `exp16@600k` 作为备份上传到 HuggingFace：[`lepao/act_so101_v06_exp16_resnet50_600k_cosine_fixed`](https://huggingface.co/lepao/act_so101_v06_exp16_resnet50_600k_cosine_fixed)。
+- 原 700k 模型仓库保持不变：[`lepao/act_so101_v06_exp16_resnet50_700k_cosine_fixed`](https://huggingface.co/lepao/act_so101_v06_exp16_resnet50_700k_cosine_fixed)。
+- 离线指标差距很小（600k MSE=8.28 vs 700k MSE=7.01），但实机优先尝试 600k，再决定是否回退或重新校准训练步数。
