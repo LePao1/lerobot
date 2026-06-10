@@ -250,3 +250,40 @@ python -m lerobot.async_inference.robot_client `
     --debug_visualize_queue_size=true `
     --observation_image_compression_quality=80
 ```
+```powershell
+python -m lerobot.async_inference.robot_client `
+    --server_address=127.0.0.1:6006 `
+    --robot.type=so101_follower `
+    --robot.port=COM3 `
+    --robot.id=0 `
+    --robot.cameras="{ 'handeye': {'type': 'opencv', 'index_or_path': 0, 'width': 640, 'height': 360, 'fps': 30, 'fourcc': 'MJPG'}, 'fixed': {'type': 'opencv', 'index_or_path': 1, 'width': 640, 'height': 360, 'fps': 30, 'fourcc': 'MJPG'}}" `
+    --task="Grab the paper cube" `
+    --policy_type=act `
+    --pretrained_name_or_path=lepao/act_so101_v06_exp16_resnet50_600k_cosine_fixed `
+    --policy_device=cuda `
+    --client_device=cpu `
+    --actions_per_chunk=100 `
+    --chunk_size_threshold=0.3 `
+    --aggregate_fn_name=weighted_average `
+    --debug_visualize_queue_size=true `
+    --observation_image_compression_quality=80
+```
+
+```powershell
+python -m lerobot.async_inference.robot_client `
+    --server_address=127.0.0.1:6006 `
+    --robot.type=so101_follower `
+    --robot.port=COM3 `
+    --robot.id=0 `
+    --robot.cameras="{ 'handeye': {'type': 'opencv', 'index_or_path': 0, 'width': 640, 'height': 360, 'fps': 30, 'fourcc': 'MJPG'}, 'fixed': {'type': 'opencv', 'index_or_path': 1, 'width': 640, 'height': 360, 'fps': 30, 'fourcc': 'MJPG'}}" `
+    --task="Grab the paper cube" `
+    --policy_type=act `
+    --pretrained_name_or_path=lepao/act_so101_v05_exp14_resnet50_500k_cosine_600ep `
+    --policy_device=cuda `
+    --client_device=cpu `
+    --actions_per_chunk=100 `
+    --chunk_size_threshold=0.3 `
+    --aggregate_fn_name=weighted_average `
+    --debug_visualize_queue_size=true `
+    --observation_image_compression_quality=80
+```
